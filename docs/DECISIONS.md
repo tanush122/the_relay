@@ -1,5 +1,7 @@
 # Decision log
 
+**Standing principle (Tanush, 9 Nov):** prefer what a working engineer would ship under real constraints — measured numbers, simple mechanisms, honest limits — over idealised designs. When two options are close, choose the one that is simpler to operate and explain. Applied to every later planning choice; the assistant says so when it decides something.
+
 One row per decision. "Tanush's call" is filled only from his own words; "pending" means not yet decided.
 
 | Decision | Recommended by assistant | Tanush's call | Date |
@@ -21,3 +23,15 @@ One row per decision. "Tanush's call" is filled only from his own words; "pendin
 | Four phases from PLAN 6 (Foundations and probe; Pipeline and retrieval; Gateway, stand-in and load; Experiments and write-up) | Four phases | "divide the work into phases first, then start with phase 1" (via coordinator) | 2026-11-10 |
 | Every GSD agent and subagent runs on an Opus model, not Fable, to save usage limits | — | Opus for all agents (via coordinator) | 2026-11-10 |
 | GSD config: interactive mode (approve each phase plan), coarse granularity, sequential plans, commit planning docs, plan-check + verifier on, project research off, UI/AI-integration phases off | As listed | assistant default, pending Tanush | 2026-11-10 |
+| Phase 1 discuss step answered from PLAN/DECISIONS (see .planning/phases/01-foundations-and-probe/01-CONTEXT.md) | As written there | assistant default, pending Tanush | 2026-11-10 |
+| Probe design: models-list call, ~50 spaced requests, two bursts (RPM then TPM), concurrency ramp 1/2/4/8, reasoning detection, max_tokens 50 vs 1,000 pair, ~25–30k token cap | As listed | assistant default, pending Tanush | 2026-11-10 |
+| Local models: MiniLM/bge-small embeddings + ms-marco MiniLM cross-encoder; HTML parsing with beautifulsoup4 | As listed | assistant default, pending Tanush | 2026-11-10 |
+| Ladder: three levels (Normal, Lean, Day-gone); waiting for refill is queue behaviour; Minimal rung and small-model rung dropped | Three levels | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
+| Cache: exact-match only; coalescing listed as deliberately not built, cost measured from the burst run | Exact-match | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
+| Scenarios: six (real steady; stand-in steady, burst, sustained overload with retry-budget off/on variant, limit halved, day exhausted); queue-order comparison dropped | Six | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
+| Report script (Tables 2a/2b/3, DATA-06/07/08) moved to phase 2; write-up drafting starts Wednesday evening | Move | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
+| Tool-timeout injection on the retrieve step (new GW-09, phase 3) | Add | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
+| One-command live entry point `uv run relay ask "..."` (new PIPE-07, phase 2) | Add | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
+| Empty-field rule for results.csv fields that do not apply, enforced by the validator (new DATA-10, phase 2) | Add | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
+| Keep 18 evaluation questions (checker suggested 15) | 18 | Tanush: keep 18 | 2026-11-10 |
+| EVAL-06 (smaller-model quality eval) dropped, follows from removing the small-model rung | Drop | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |

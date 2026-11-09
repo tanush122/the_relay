@@ -38,6 +38,7 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 - [ ] **PIPE-03**: The draft step streams an answer only from numbered pieces, citing piece ids that code maps to "paper, version, section"; output capped (~250 tokens) (BRIEF: every answer must cite)
 - [ ] **PIPE-04**: The check step verifies in code that every cited id was retrieved and every number in the answer appears in a cited piece; a failed check becomes a refusal, never a guess (BRIEF: never send a wrong or embarrassing answer)
 - [ ] **PIPE-05**: When the papers do not say, the assistant says so instead of guessing (retrieval threshold + prompt permission + check) (BRIEF: if the papers do not say)
+- [ ] **PIPE-07**: One command (`uv run relay ask "question"`) runs the full pipeline on a single question and prints the streamed answer, citations mapped to paper/section, timing and tokens (BRIEF: we will ask questions; live follow-up)
 - [ ] **PIPE-06**: One byte-identical system prompt across requests (PLAN 2.4)
 
 ### Gateway (GW)
@@ -45,11 +46,12 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 - [ ] **GW-01**: The gateway is the only door to the model: it keeps its own requests/tokens per-minute and per-day counters per model, corrected from response headers, and reserves estimated cost before each call (BRIEF: provider limits RPM/TPM/RPD; PLAN 3.1)
 - [ ] **GW-02**: Each request carries a deadline (proposed first token 2,000 ms p50 / 5,000 ms p95, give-up 15,000 ms); requests predicted to miss it are refused at once with an honest message and retry time (BRIEF: people give up; define fast; PLAN 3.2)
 - [ ] **GW-03**: Bounded queue; expired requests dropped before spending tokens; queue order (oldest vs newest first) is configurable (PLAN 3.3)
-- [ ] **GW-04**: A degradation ladder (levels 0 normal, 1 lean, 2 minimal, 3 queue only, 4 day gone) chosen from remaining budget; citations, check and refusal never change; a daily reserve is held back (BRIEF: who gets a weaker answer; PLAN 3.4)
+- [ ] **GW-04**: A three-level degradation ladder (Normal, Lean, Day-gone) chosen from remaining budget; waiting for the minute to refill is queue behaviour, not a level; citations, check and refusal never change; a daily reserve is held back (BRIEF: who gets a weaker answer; PLAN 3.4)
 - [ ] **GW-05**: Retry policy: only 429 (after retry-after), 500, 502, 503 and first-token timeouts; exponential backoff with full jitter; at most 2 retries; never past the deadline; retry budget 10% of recent calls; no retry after tokens shown; budget switchable off for the storm comparison (BRIEF: heading Retries; PLAN 3.5)
 - [ ] **GW-06**: Two timeouts — first-token and stall-between-chunks — set from probe percentiles (BRIEF: calls succeed slowly; PLAN 3.6)
-- [ ] **GW-07**: Identical concurrent questions share one model call and finished answers are cached (PLAN 3.7)
-- [ ] **GW-08**: At level 4 a waiting person receives cached answers or the most relevant cited passages with no model call, plus when generated answers return (BRIEF: heading 7, 3pm daily budget gone)
+- [ ] **GW-07**: Finished answers are cached by exact normalised question; coalescing of concurrent identical questions is deliberately not built and its cost is measured from the burst run (PLAN 3.7, revised 10 Nov)
+- [ ] **GW-09**: Tool timeouts are simulated: a config setting injects delay or failure into the retrieve step, which has its own timeout and a rule (retry once, else refuse honestly; never answer without passages), recorded as a trace span (BRIEF: tools time out)
+- [ ] **GW-08**: At the Day-gone level a waiting person receives cached answers or the most relevant cited passages with no model call, plus when generated answers return (BRIEF: heading 7, 3pm daily budget gone)
 
 ### Stand-in (STAND)
 
@@ -62,7 +64,7 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 
 - [ ] **LOAD-01**: Open-loop load generator sends on schedule regardless of reply speed; latency measured from scheduled arrival (PLAN 4.4, measurement honesty)
 - [ ] **LOAD-02**: Arrival times come from a slice of a confirmed, licensed public LLM traffic trace compressed in time, or a stated arrival process if none can be confirmed (PLAN 4.2)
-- [ ] **LOAD-03**: Scenarios run: steady (real, small), steady (stand-in), burst, sustained overload, per-minute limit halved, daily budget exhausted, retry storm comparison, queue order comparison (BRIEF: at least three load shapes; Table 2a required rows)
+- [ ] **LOAD-03**: Six scenarios run: steady (real, small), steady (stand-in), burst, sustained overload (with a paired retry-budget off/on variant for the retry-storm case), per-minute limit halved, daily budget exhausted; queue-order comparison dropped (BRIEF: at least three load shapes; Table 2a required rows)
 - [ ] **LOAD-04**: Each stand-in scenario sends at least 1,000 requests; real-run percentiles carry their request count and are labelled weak (BRIEF: say which percentiles and how many requests)
 - [ ] **LOAD-05**: Raw results are kept for both real and stand-in runs (BRIEF: keep the raw results for both)
 
@@ -73,7 +75,6 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 - [ ] **EVAL-03**: All three retrieval settings are run on real Groq over the questions (spread over two days for quota) (BRIEF: retrieval quality versus cost)
 - [ ] **EVAL-04**: Table 3 is produced with columns Setting, Questions asked, Correct and cited %, Wrong %, Correctly refused %, Tokens per answer, First token p50/p95 (ms), Total time p50/p95 (ms) (BRIEF: Table 3)
 - [ ] **EVAL-05**: The refusal threshold is set from the questions and the wrong-answer vs wrong-refusal trade is reported (PLAN 2.5)
-- [ ] **EVAL-06**: The smaller model's answer quality is measured on the same questions so "weaker answer" is a number (PLAN 2.6)
 - [ ] **EVAL-07**: Three ways the library misleads a naive retriever are each shown with an example question confirmed by runs (BRIEF: heading "How this library will mislead a naive retriever")
 
 ### Results data and reporting (DATA)
@@ -86,6 +87,7 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 - [ ] **DATA-06**: One report command prints Tables 1, 2a, 2b and 3 from results.csv (and probe files); write-up tables are pasted from it; times in ms, percentages one decimal, "not measured" where not measured (BRIEF: tables must match the raw file)
 - [ ] **DATA-07**: Table 2a has columns Scenario, Real or stand-in, Requests sent, Duration (s), Offered rate (per min), First token p50/p95/p99 (ms), Total time p50/p95/p99 (ms) (BRIEF: Table 2a)
 - [ ] **DATA-08**: Table 2b has columns Scenario, Succeeded %, Rate-limited %, Timed out or given up %, Retries per request, Peak queue length, Tokens per answer, Cost per 1,000 answers (BRIEF: Table 2b)
+- [ ] **DATA-10**: Empty-field rule: a results.csv field that does not apply is left empty, never guessed (ungraded load rows have empty answer_grade; replies with no model call have empty first_token_ms but a real total_ms; probe rows use their own scenario names); the validator accepts empty only where the rule allows, and the rule is stated in the write-up
 - [ ] **DATA-09**: A validator checks results.csv against the brief's columns and allowed values and that every write-up figure recomputes (BRIEF: reviewers recompute)
 
 ### Write-up (DOC)
@@ -121,6 +123,9 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 |---------|--------|
 | Hedged requests | Spend scarce quota under a token limit |
 | Second provider or extra accounts | Forbidden by the brief and Groq terms |
+| Smaller-model quality eval (EVAL-06) | Dropped with the Minimal ladder rung (10 Nov) |
+| Request coalescing | Exact-match cache only; cost measured from burst run (10 Nov) |
+| Queue-order comparison | Dropped to cut scenario runtime (10 Nov) |
 | Model-based grader | Costs quota; hand grading is defensible |
 | Web interface | Measures nothing |
 | Multi-worker deployment | One asyncio process is the right size; described as not built |
@@ -150,6 +155,7 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | PIPE-03 | Phase 2 | Pending |
 | PIPE-04 | Phase 2 | Pending |
 | PIPE-05 | Phase 2 | Pending |
+| PIPE-07 | Phase 2 | Pending |
 | PIPE-06 | Phase 2 | Pending |
 | GW-01 | Phase 3 | Pending |
 | GW-02 | Phase 3 | Pending |
@@ -158,6 +164,7 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | GW-05 | Phase 3 | Pending |
 | GW-06 | Phase 3 | Pending |
 | GW-07 | Phase 3 | Pending |
+| GW-09 | Phase 3 | Pending |
 | GW-08 | Phase 3 | Pending |
 | STAND-01 | Phase 3 | Pending |
 | STAND-02 | Phase 3 | Pending |
@@ -173,16 +180,16 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | EVAL-03 | Phase 4 | Pending |
 | EVAL-04 | Phase 4 | Pending |
 | EVAL-05 | Phase 2 | Pending |
-| EVAL-06 | Phase 4 | Pending |
 | EVAL-07 | Phase 4 | Pending |
 | DATA-01 | Phase 2 | Pending |
 | DATA-02 | Phase 2 | Pending |
 | DATA-03 | Phase 2 | Pending |
 | DATA-04 | Phase 4 | Pending |
 | DATA-05 | Phase 3 | Pending |
-| DATA-06 | Phase 4 | Pending |
-| DATA-07 | Phase 4 | Pending |
-| DATA-08 | Phase 4 | Pending |
+| DATA-06 | Phase 2 | Pending |
+| DATA-07 | Phase 2 | Pending |
+| DATA-08 | Phase 2 | Pending |
+| DATA-10 | Phase 2 | Pending |
 | DATA-09 | Phase 2 | Pending |
 | DOC-01 | Phase 4 | Pending |
 | DOC-02 | Phase 4 | Pending |
@@ -202,8 +209,8 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | SUB-03 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 70 total (header previously said 63; actual count of listed IDs is 70)
-- Mapped to phases: 70 (Phase 1: 14, Phase 2: 13, Phase 3: 15, Phase 4: 28)
+- v1 requirements: 72 total (revised 10 Nov: EVAL-06 dropped; PIPE-07, GW-09, DATA-10 added)
+- Mapped to phases: 72 (Phase 1: 14, Phase 2: 18, Phase 3: 16, Phase 4: 24)
 - Unmapped: 0
 
 ---

@@ -1,6 +1,16 @@
 # The Relay: build plan
 
-Plan of record: the Claude Doc above (https://claude.ai/artifact/PhKNHthH7xc1J3Wc2KDNxQ). Status: proposed, awaiting Tanush's approval.
+Plan of record: the Claude Doc above (https://claude.ai/artifact/PhKNHthH7xc1J3Wc2KDNxQ). Status: approved with the revisions below (10 Nov).
+
+> **Revisions applied 10 Nov on Tanush's instruction (pragmatic real-world option). These override the text further down where they conflict:**
+> 1. Degradation ladder (3.4) has three levels: Normal, Lean (absorbs Minimal: fewer pieces, shorter output, no rewrite), Day-gone. Waiting for the minute to refill is queue behaviour, not a level. No smaller-model rung, so the smaller-model quality eval is dropped.
+> 2. Cache (3.7): exact-match answer cache only. Coalescing of concurrent identical questions is deliberately not built; its cost is measured from the burst run.
+> 3. Scenarios (4.2): six — real steady; stand-in steady, burst, sustained overload (paired retry-budget off/on variant for the retry-storm case), per-minute limit halved, daily budget exhausted. Queue-order comparison dropped.
+> 4. Report script (4.5) is built in phase 2 next to the csv writer; write-up drafting starts Wednesday evening.
+> 5. New: tool-timeout injection on the retrieve step (own timeout; retry once, else refuse honestly), phase 3.
+> 6. New: `uv run relay ask "question"` — one command to run the full pipeline on a single question, phase 2.
+> 7. New: empty-field rule for results.csv (a field that does not apply is left empty, never guessed), enforced by the validator, phase 2.
+> 8. Evaluation keeps 18 questions.
 
 Nov 10, 2026 · @Tanush
 
