@@ -38,8 +38,14 @@ class FakeGroq:
 
 def _handler(fake):
     class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"  # keep-alive, so connection reuse can be tested
+
         def log_message(self, *args):  # keep test output quiet
             pass
+
+        def _chunk(self, data):  # one piece of a chunked HTTP/1.1 body
+            self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n")
+            self.wfile.flush()
 
         def _json(self, status, payload, headers=None):
             data = json.dumps(payload).encode()
@@ -79,6 +85,7 @@ def _handler(fake):
                 return
             self.send_response(200)
             self.send_header("content-type", "text/event-stream")
+            self.send_header("transfer-encoding", "chunked")
             for name, value in {
                 "x-ratelimit-limit-requests": "1000",
                 "x-ratelimit-remaining-requests": str(max(0, 1000 - len(fake.requests))),
@@ -96,8 +103,7 @@ def _handler(fake):
                          "model": body.get("model"),
                          "choices": [{"index": 0, "delta": delta, "finish_reason": None}]}
                 chunk.update(extra or {})
-                self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
-                self.wfile.flush()
+                self._chunk(f"data: {json.dumps(chunk)}\n\n".encode())
 
             send({"role": "assistant", "content": ""})
             if fake.reasoning_text:
@@ -113,10 +119,10 @@ def _handler(fake):
                          "prompt_tokens": 20, "completion_tokens": 5, "total_tokens": 25,
                          "queue_time": 0.01}}}
             if fake.stream_error:
-                self.wfile.write(f"data: {json.dumps({'error': fake.stream_error})}\n\n".encode())
+                self._chunk(f"data: {json.dumps({'error': fake.stream_error})}\n\n".encode())
             send({}, final)
-            self.wfile.write(fake.done_line)
-            self.wfile.flush()
+            self._chunk(fake.done_line)
+            self._chunk(b"")  # end of the chunked body
 
     return Handler
 

@@ -133,7 +133,13 @@ async def list_models(client, api_key, base_url=None):
 
 async def stream_chat(client, model, messages, max_tokens, api_key, base_url=None,
                       extra=None, on_content=None, tag=None, trace_path=None):
-    """One streamed chat completion; returns (and optionally traces) everything observed."""
+    """One streamed chat completion; returns (and optionally traces) everything observed.
+
+    TTFT definition: from just before the request is handed to httpx until the first
+    content delta. It therefore includes DNS, TCP and TLS setup whenever httpx has to open
+    a new connection; record["new_connection"] says when that happened, so the latency
+    spread can be split into "fresh connection" and "reused connection" requests.
+    """
     url = f"{base_url or config.BASE_URL}/chat/completions"
     body = {"model": model, "messages": messages, "max_tokens": max_tokens, "stream": True,
             **config.MODEL_PARAMS.get(model, {}), **(extra or {})}
@@ -141,12 +147,19 @@ async def stream_chat(client, model, messages, max_tokens, api_key, base_url=Non
               "sent_at": _now(), "status": None, "headers": {}, "ttft_ms": None,
               "first_reasoning_ms": None, "total_ms": None, "content": "",
               "reasoning_chars": 0, "delta_keys": [], "usage": None, "x_groq": None,
-              "final_chunk": None, "error_body": None, "exception": None}
+              "final_chunk": None, "error_body": None, "exception": None,
+              "new_connection": False}
     content, keys = [], set()
+
+    async def note_connect(event, info):  # httpx/httpcore trace hook
+        if event == "connection.connect_tcp.started":
+            record["new_connection"] = True
+
     start = time.perf_counter()
     try:
         async with client.stream("POST", url, json=body,
-                                 headers={"Authorization": f"Bearer {api_key}"}) as response:
+                                 headers={"Authorization": f"Bearer {api_key}"},
+                                 extensions={"trace": note_connect}) as response:
             record["status"] = response.status_code
             # httpx lowercases header names and joins repeated headers with ", ";
             # fine for Groq's single-valued x-ratelimit-* and retry-after headers.

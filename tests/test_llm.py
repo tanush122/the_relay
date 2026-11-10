@@ -136,3 +136,15 @@ def test_stream_error_event_and_done_without_space(fake_groq):
     r = chat(fake_groq)
     assert r["status"] == 200 and r["exception"] is None
     assert "fixture mid-stream failure" in r["error_body"]
+
+
+def test_new_connection_flag(fake_groq):
+    async def run():
+        async with llm.make_client() as client:
+            first = await llm.stream_chat(client, "fake-model", MESSAGES, 16, KEY,
+                                          base_url=fake_groq.base_url)
+            second = await llm.stream_chat(client, "fake-model", MESSAGES, 16, KEY,
+                                           base_url=fake_groq.base_url)
+            return first, second
+    first, second = asyncio.run(run())
+    assert first["new_connection"] is True and second["new_connection"] is False
