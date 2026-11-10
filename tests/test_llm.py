@@ -128,3 +128,11 @@ def test_cookies_and_org_not_saved(fake_groq):
     r = chat(fake_groq)
     assert "retry-after" in r["headers"]
     assert "org_fake" not in r["error_body"] and "org_[REDACTED]" in r["error_body"]
+
+
+def test_stream_error_event_and_done_without_space(fake_groq):
+    fake_groq.stream_error = {"message": "fixture mid-stream failure", "type": "server_error"}
+    fake_groq.done_line = b"data:[DONE]\n\n"
+    r = chat(fake_groq)
+    assert r["status"] == 200 and r["exception"] is None
+    assert "fixture mid-stream failure" in r["error_body"]

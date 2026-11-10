@@ -155,10 +155,15 @@ async def stream_chat(client, model, messages, max_tokens, api_key, base_url=Non
                 record["error_body"] = redact((await response.aread()).decode(errors="replace"))
             else:
                 async for line in response.aiter_lines():
-                    if not line.startswith("data:") or line.strip() == "data: [DONE]":
+                    if not line.startswith("data:"):
                         continue
-                    chunk = json.loads(line[len("data:"):])
+                    payload = line[len("data:"):].strip()  # "data:[DONE]" is valid SSE too
+                    if payload == "[DONE]":
+                        continue
+                    chunk = json.loads(payload)
                     record["final_chunk"] = chunk
+                    if chunk.get("error"):  # an error event inside a 200 stream
+                        record["error_body"] = redact(json.dumps(chunk))
                     if chunk.get("x_groq"):
                         record["x_groq"] = chunk["x_groq"]
                     usage = chunk.get("usage") or (chunk.get("x_groq") or {}).get("usage")

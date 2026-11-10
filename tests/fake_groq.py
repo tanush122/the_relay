@@ -19,6 +19,8 @@ class FakeGroq:
         self.reply_text = "Hello [attention-C-001]."
         self.reasoning_text = ""  # when set, reasoning deltas stream before content
         self.delay_s = 0.0  # pause before each content delta
+        self.stream_error = None  # when set, sent as an error event after the content
+        self.done_line = b"data: [DONE]\n\n"
         self.requests = []  # bodies received by the chat endpoint
         self._window_start = time.monotonic()
         self._count = 0
@@ -110,8 +112,10 @@ def _handler(fake):
                      "x_groq": {"id": "req_fake", "usage": {
                          "prompt_tokens": 20, "completion_tokens": 5, "total_tokens": 25,
                          "queue_time": 0.01}}}
+            if fake.stream_error:
+                self.wfile.write(f"data: {json.dumps({'error': fake.stream_error})}\n\n".encode())
             send({}, final)
-            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.write(fake.done_line)
             self.wfile.flush()
 
     return Handler
