@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-11-10T05:08:28.656Z"
-last_activity: 2026-11-10 - Completed 01-01
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-11-10T05:20:44.118Z"
+last_activity: 2026-11-10 - Completed 01-02
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 20
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-11-10)
 ## Current Position
 
 Phase: 1 of 4 (Foundations and probe)
-Plan: 1 of 5 in current phase (01-01 complete; next 01-02)
+Plan: 2 of 5 in current phase (01-02 complete; next 01-03)
 Status: Executing phase 1
-Last activity: 2026-11-10 - Completed 01-01 (uv + Python 3.12, config.py, gsk_ guard)
+Last activity: 2026-11-10 - Completed 01-02 (papers fetched, A/B/C pieces, local retrieval)
 
-Progress: [██░░░░░░░░] 20% of phase 1 plans
+Progress: [████░░░░░░] 40% of phase 1 plans
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 5 min
+- Total plans completed: 2
+- Average duration: 8 min
 - Total execution time: 0.0 hours
 
 **By Phase:**
@@ -53,6 +53,7 @@ Progress: [██░░░░░░░░] 20% of phase 1 plans
 
 *Updated after each plan completion*
 | Phase 01 P01 | 5min | 3 tasks | 12 files |
+| Phase 01 P02 | 11min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,7 @@ Recent decisions affecting current work:
 
 - [Roadmap]: Phase structure fixed by docs/PLAN.md section 6; phases 2 and 3 overlap on Wed 11 Nov because the gateway and stand-in need no real quota.
 - [Phase 01]: requires_data expects data/manifest.json shaped {files:[{name}]}; plan 02 writes that shape
+- [Phase 01]: Setting A misses the H-Net ratio-loss phrase (window split); kept as strict xfail and Table 3 finding, pending Tanush
 
 ### Pending Todos
 
@@ -83,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-11-10T05:08:28.654Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-11-10T05:20:44.116Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

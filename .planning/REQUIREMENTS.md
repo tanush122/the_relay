@@ -17,11 +17,11 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 
 ### Library and retrieval (LIB)
 
-- [ ] **LIB-01**: The three papers are fetched once at exactly 1706.03762v7, 2410.00037v1, 2507.07955v2 (arXiv HTML, PDF fallback), cached locally, with a committed manifest of URL, version, bytes, sha256 and fetch time (BRIEF: the library, exact versions)
-- [ ] **LIB-02**: Papers are parsed into a section tree; every piece carries paper, version, section number, section title and a piece id; tables are kept whole with captions (BRIEF: cite where in the papers; PLAN 2.1)
-- [ ] **LIB-03**: Three retrieval settings exist as configuration: A small fixed (~180 tokens, 30 overlap, 8 pieces, no re-rank), B large fixed (~600 tokens, 80 overlap, 4 pieces, no re-rank), C section-aware (4 of top 20, local cross-encoder re-rank) (BRIEF: at least three settings — piece size, pieces fetched, re-ranking; PLAN 2.2)
-- [ ] **LIB-04**: Retrieval combines BM25 and a small local embedding model by reciprocal rank fusion, spends zero Groq tokens, and filters to a paper when the question names one (PLAN 2.3)
-- [ ] **LIB-05**: A known fact from each paper is retrievable under every setting (e.g. Attention feed-forward dimension, Moshi Mimi frame rate, H-Net ratio loss) (BRIEF: one step must retrieve passages)
+- [x] **LIB-01**: The three papers are fetched once at exactly 1706.03762v7, 2410.00037v1, 2507.07955v2 (arXiv HTML, PDF fallback), cached locally, with a committed manifest of URL, version, bytes, sha256 and fetch time (BRIEF: the library, exact versions)
+- [x] **LIB-02**: Papers are parsed into a section tree; every piece carries paper, version, section number, section title and a piece id; tables are kept whole with captions (BRIEF: cite where in the papers; PLAN 2.1)
+- [x] **LIB-03**: Three retrieval settings exist as configuration: A small fixed (~180 tokens, 30 overlap, 8 pieces, no re-rank), B large fixed (~600 tokens, 80 overlap, 4 pieces, no re-rank), C section-aware (4 of top 20, local cross-encoder re-rank) (BRIEF: at least three settings — piece size, pieces fetched, re-ranking; PLAN 2.2)
+- [x] **LIB-04**: Retrieval combines BM25 and a small local embedding model by reciprocal rank fusion, spends zero Groq tokens, and filters to a paper when the question names one (PLAN 2.3)
+- [x] **LIB-05**: A known fact from each paper is retrievable under every setting (e.g. Attention feed-forward dimension, Moshi Mimi frame rate, H-Net ratio loss) (BRIEF: one step must retrieve passages)
 
 ### Real service and client (REAL)
 
@@ -140,11 +140,11 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | ENV-03 | Phase 1 | Complete |
 | ENV-04 | Phase 1 | Complete |
 | ENV-05 | Phase 1 | Pending |
-| LIB-01 | Phase 1 | Pending |
-| LIB-02 | Phase 1 | Pending |
-| LIB-03 | Phase 1 | Pending |
-| LIB-04 | Phase 1 | Pending |
-| LIB-05 | Phase 1 | Pending |
+| LIB-01 | Phase 1 | Complete |
+| LIB-02 | Phase 1 | Complete |
+| LIB-03 | Phase 1 | Complete |
+| LIB-04 | Phase 1 | Complete |
+| LIB-05 | Phase 1 | Complete |
 | REAL-01 | Phase 1 | Pending |
 | REAL-02 | Phase 1 | Pending |
 | REAL-03 | Phase 1 | Pending |
