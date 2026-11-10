@@ -74,9 +74,10 @@ BASE_URL = os.environ.get("RELAY_BASE_URL", "https://api.groq.com/openai/v1")
 CONNECT_TIMEOUT_S = 10.0
 READ_TIMEOUT_S = 60.0
 
-CANDIDATE_MODELS = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile",
-                    "openai/gpt-oss-20b", "openai/gpt-oss-120b"]
-DRAFT_MODEL = "llama-3.1-8b-instant"  # provisional until the probe; Tanush chooses the drafting model (PLAN 2.6)
+# Chat models Groq's free models list returned on 10 Nov 2026 (probe run_20261110T060353Z).
+# The Llama chat models the plan assumed are NOT on the account.
+CANDIDATE_MODELS = ["openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
+DRAFT_MODEL = "openai/gpt-oss-20b"  # provisional until the probe; Tanush chooses the drafting model (PLAN 2.6)
 # Reasoning models may spend tokens before the first content token; the probe records
 # whether this happens. Groq's `reasoning_format` applies to other reasoning models and is
 # believed not to apply to gpt-oss (which uses reasoning_effort / include_reasoning).
@@ -135,11 +136,9 @@ PROBE = {
 # What Groq's limits page is believed to say per model, used ONLY to spot a header that is
 # far lower than expected (then the probe aborts and reports). Not measurements, never in
 # Table 1. The headers report requests per day and tokens per minute (docs/RESEARCH.md).
-# gpt-oss values: docs/RESEARCH.md table. llama values: assistant memory of the limits page,
-# unverified; Tanush to confirm at console.groq.com/settings/limits.
+# All values: docs/RESEARCH.md table (Groq rate-limits page as read on 9 Nov 2026).
 DOCUMENTED_LIMITS = {
     "openai/gpt-oss-20b": {"requests_per_day": 1000, "tokens_per_minute": 8000},
     "openai/gpt-oss-120b": {"requests_per_day": 1000, "tokens_per_minute": 8000},
-    "llama-3.1-8b-instant": {"requests_per_day": 14400, "tokens_per_minute": 6000},
-    "llama-3.3-70b-versatile": {"requests_per_day": 1000, "tokens_per_minute": 12000},
+    "qwen/qwen3.8-27b": {"requests_per_day": 1000, "tokens_per_minute": 8000},
 }
