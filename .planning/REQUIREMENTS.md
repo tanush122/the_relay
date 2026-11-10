@@ -21,13 +21,13 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 - [x] **LIB-02**: Papers are parsed into a section tree; every piece carries paper, version, section number, section title and a piece id; tables are kept whole with captions (BRIEF: cite where in the papers; PLAN 2.1)
 - [x] **LIB-03**: Three retrieval settings exist as configuration: A small fixed (~180 tokens, 30 overlap, 8 pieces, no re-rank), B large fixed (~600 tokens, 80 overlap, 4 pieces, no re-rank), C section-aware (4 of top 20, local cross-encoder re-rank) (BRIEF: at least three settings — piece size, pieces fetched, re-ranking; PLAN 2.2)
 - [x] **LIB-04**: Retrieval combines BM25 and a small local embedding model by reciprocal rank fusion, spends zero Groq tokens, and filters to a paper when the question names one (PLAN 2.3)
-- [x] **LIB-05**: A known fact from each paper is retrievable under every setting (e.g. Attention feed-forward dimension, Moshi Mimi frame rate, H-Net ratio loss) (BRIEF: one step must retrieve passages)
+- [ ] **LIB-05**: A known fact from each paper is retrievable under every setting (e.g. Attention feed-forward dimension, Moshi Mimi frame rate, H-Net ratio loss) (BRIEF: one step must retrieve passages)
 
 ### Real service and client (REAL)
 
 - [x] **REAL-01**: An async streaming model client with a single base-URL setting talks to Groq or the stand-in unchanged (BRIEF: real hosted model on Groq free tier; stand-in replaces it)
 - [x] **REAL-02**: The client records per call: time to first token, total time, token usage and all rate-limit headers, and writes a per-request trace line (BRIEF: TTFT and total time; PLAN 3.9)
-- [ ] **REAL-03**: A probe sends a modest number of real requests (~50 spaced, then one deliberate burst) and saves raw status, headers, timings, usage and error bodies (BRIEF: what to run — first, modest number of real requests; latency spread, limits, behaviour at a limit)
+- [x] **REAL-03**: A probe sends a modest number of real requests (~50 spaced, then one deliberate burst) and saves raw status, headers, timings, usage and error bodies (BRIEF: what to run — first, modest number of real requests; latency spread, limits, behaviour at a limit)
 - [x] **REAL-04**: A script drafts Table 1 from the raw probe files with every row: requests per minute, tokens per minute, requests per day, tokens per day, requests in flight at once, what it returns when a limit is hit, time until it recovers — columns Limit, Value found, How found, Confidence (BRIEF: Table 1)
 - [ ] **REAL-05**: The daily limit is confirmed by exhausting the cheapest model once, late, when no other run needs quota — or Table 1 says how it was found otherwise (BRIEF: Table 1 requests/tokens per day; PLAN 4.1)
 
@@ -144,10 +144,10 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | LIB-02 | Phase 1 | Complete |
 | LIB-03 | Phase 1 | Complete |
 | LIB-04 | Phase 1 | Complete |
-| LIB-05 | Phase 1 | Complete |
+| LIB-05 | Phase 1 | Partial: 8 of 9 (setting B misses the H-Net ratio loss, ranks 8th of 4 kept); fix B or Tanush accepts as a Table 3 finding |
 | REAL-01 | Phase 1 | Complete |
 | REAL-02 | Phase 1 | Complete |
-| REAL-03 | Phase 1 | Pending (built + dry-run; real run is plan 05) |
+| REAL-03 | Phase 1 | Complete (run_20261110T133218Z) |
 | REAL-04 | Phase 1 | Complete |
 | REAL-05 | Phase 4 | Pending |
 | PIPE-01 | Phase 2 | Pending |

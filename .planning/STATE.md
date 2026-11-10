@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: 01-05 gate; probe attempt 1 aborted after free models list (0 tokens); awaiting Tanush cap for retry on gpt-oss models
+stopped_at: 01-05 done (real probe + cited answer); verification gaps_found (LIB-05 setting B); awaiting Tanush
 last_updated: "2026-11-10T05:30:22.507Z"
 last_activity: 2026-11-10 - Completed 01-04
 progress:
@@ -66,7 +66,7 @@ Recent decisions affecting current work:
 
 - [Roadmap]: Phase structure fixed by docs/PLAN.md section 6; phases 2 and 3 overlap on Wed 11 Nov because the gateway and stand-in need no real quota.
 - [Phase 01]: requires_data expects data/manifest.json shaped {files:[{name}]}; plan 02 writes that shape
-- [Phase 01]: Setting A misses the H-Net ratio-loss phrase (window split); kept as strict xfail and Table 3 finding, pending Tanush
+- [Phase 01]: Setting B misses the H-Net ratio-loss phrase (window split); kept as strict xfail and Table 3 finding, pending Tanush
 - [Phase 01]: Probe dry-run upper bound 17,179 tokens (cap default 30,000); ask.py dry run 2,617; awaiting Tanush's cap approval for plan 05
 
 ### Pending Todos
@@ -77,7 +77,7 @@ None yet.
 
 - docs/PLAN.md is still "proposed, awaiting Tanush's approval" (speed targets, ladder, retrieval settings, three results.csv rules in PLAN 4.3).
 - Phase 1 needs: Tanush's approval to install uv and Python 3.12, a Groq key pasted into .env by Tanush, and his limits page.
-- 01-05: lean probe upper bound 12,420 tokens on gpt-oss-20b exceeds the approved 6,000 cap; needs a new cap or a smaller spaced stage.
+- LIB-05: setting B misses the H-Net ratio-loss fact; Tanush to choose fix B or accept as a Table 3 finding.
 - Phase 2 needs Tanush's 18+ questions and answer key by Wed 11 Nov morning.
 - Real-quota budget per day (PLAN 5.3): Tue ~30k, Wed ~120k, Thu ~150k + one exhaustion, Fri reserve only.
 

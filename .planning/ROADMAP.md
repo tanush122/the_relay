@@ -35,7 +35,7 @@ Plans:
 - [x] 01-02-PLAN.md — fetch exact paper versions + manifest, section parsing, settings A/B/C pieces, BM25+embedding RRF retrieval with C re-rank, known-fact tests
 - [x] 01-03-PLAN.md — async streaming Groq client with header/usage/TTFT traces (fake-server tested), ask.py thin cited path with spend gate
 - [x] 01-04-PLAN.md — probe.py (dry run, gated real mode, cap), table1.py draft, full suite + line budget + dry-run estimate, runbook
-- [ ] 01-05-PLAN.md — human-gated real run: spend approval gate, real probe under cap, Table 1 draft from real data, one real cited answer
+- [x] 01-05-PLAN.md — human-gated real run: spend approval gate, real probe under cap, Table 1 draft from real data, one real cited answer
 
 ### Phase 2: Pipeline and retrieval
 
