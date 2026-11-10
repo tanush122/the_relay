@@ -50,3 +50,63 @@ def test_fetch_is_cached(monkeypatch):
         raise AssertionError("fetch_all tried to download a file that is already cached")
     monkeypatch.setattr(httpx, "get", no_network)
     assert len(fetch.fetch_all()) == 2 * len(config.PAPERS)
+
+
+@pytest.fixture(scope="module")
+def blocks():
+    from library.parse import load_all_blocks
+    return load_all_blocks()
+
+
+# Top-level sections checked against the real HTML headings (docs/RESEARCH.md structure).
+TOP_LEVEL = {"attention": set("1234567"), "moshi": set("1234567"), "hnet": set("12345")}
+HAS_APPENDIX = {"attention": False, "moshi": True, "hnet": True}
+SUBSECTION = {"attention": "3.3", "moshi": "3.3", "hnet": "2.2"}
+
+
+def test_sections_sensible(blocks):
+    for key, paper_blocks in blocks.items():
+        assert paper_blocks
+        for b in paper_blocks:
+            for field in ("paper", "version", "section_number", "section_title", "text"):
+                assert b[field], (key, field, b.get("section_path"))
+        numbers = {b["section_number"] for b in paper_blocks}
+        tops = {n.split(".")[0] for n in numbers}
+        assert TOP_LEVEL[key] <= tops
+        if HAS_APPENDIX[key]:
+            assert any(t.isalpha() and len(t) == 1 for t in tops)
+        assert any(n == SUBSECTION[key] or n.startswith(SUBSECTION[key] + ".") for n in numbers)
+
+
+def test_tables_whole(blocks):
+    tables = [b for b in blocks["attention"] if b["kind"] == "table"]
+    assert len(tables) >= 3
+    assert all(t["text"].startswith("Table") for t in tables)
+    assert any("d_ff" in t["text"] and "2048" in t["text"] for t in tables)
+    assert not any("{" in b["text"] for b in blocks["attention"])  # math braces cleaned
+
+
+def test_math_kept(blocks):
+    assert any("2048" in b["text"] for b in blocks["attention"] if b["section_number"] == "3.3")
+
+
+def test_pieces_per_setting(blocks):
+    from library.pieces import make_pieces
+    id_pattern = re.compile(config.CITATION_PATTERN[2:-2])  # the inner group, without [ ]
+    pieces = {s: make_pieces(blocks, s) for s in "ABC"}
+    for s, ps in pieces.items():
+        assert ps
+        for p in ps:
+            assert id_pattern.fullmatch(p["piece_id"]) and p["setting"] == s
+            for field in ("paper", "version", "section_number", "section_title", "kind", "text"):
+                assert p[field]
+
+    def avg_words(ps):
+        return sum(len(p["text"].split()) for p in ps) / len(ps)
+    assert avg_words(pieces["A"]) < avg_words(pieces["B"])
+    shorts = tuple(p["short"] for p in config.PAPERS)
+    for p in pieces["C"]:
+        first_line = p["text"].split("\n", 1)[0]
+        assert first_line.startswith(shorts) and "§" in first_line
+    table_blocks = sum(b["kind"] == "table" for bl in blocks.values() for b in bl)
+    assert sum(p["kind"] == "table" for p in pieces["C"]) == table_blocks
