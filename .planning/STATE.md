@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-04-PLAN.md; next 01-05 (human-gated real run)
+stopped_at: 01-05 gate; probe attempt 1 aborted after free models list (0 tokens); awaiting Tanush cap for retry on gpt-oss models
 last_updated: "2026-11-10T05:30:22.507Z"
 last_activity: 2026-11-10 - Completed 01-04
 progress:
@@ -77,6 +77,7 @@ None yet.
 
 - docs/PLAN.md is still "proposed, awaiting Tanush's approval" (speed targets, ladder, retrieval settings, three results.csv rules in PLAN 4.3).
 - Phase 1 needs: Tanush's approval to install uv and Python 3.12, a Groq key pasted into .env by Tanush, and his limits page.
+- 01-05: lean probe upper bound 12,420 tokens on gpt-oss-20b exceeds the approved 6,000 cap; needs a new cap or a smaller spaced stage.
 - Phase 2 needs Tanush's 18+ questions and answer key by Wed 11 Nov morning.
 - Real-quota budget per day (PLAN 5.3): Tue ~30k, Wed ~120k, Thu ~150k + one exhaustion, Fri reserve only.
 
