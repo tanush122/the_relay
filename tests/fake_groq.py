@@ -23,6 +23,7 @@ class FakeGroq:
         self.done_line = b"data: [DONE]\n\n"
         self.force_status = None  # when set, every chat request gets this error status
         self.requests = []  # bodies received by the chat endpoint
+        self.auth_headers = []  # Authorization values received (to prove no real key arrives)
         self._window_start = time.monotonic()
         self._count = 0
         self.base_url = None
@@ -62,6 +63,7 @@ def _handler(fake):
             self.wfile.write(data)
 
         def _authorised(self):
+            fake.auth_headers.append(self.headers.get("Authorization", ""))
             if self.headers.get("Authorization", "").startswith("Bearer "):
                 return True
             self._json(401, {"error": {"message": "Invalid API Key", "type": "invalid_request_error"}})
