@@ -84,6 +84,7 @@ def _handler(fake):
                 "x-ratelimit-limit-tokens": "6000",
                 "x-ratelimit-remaining-tokens": "5975",
                 "x-ratelimit-reset-tokens": "7.66s",
+                "set-cookie": "__cf_bm=fixture-cookie; path=/",  # must not be saved
             }.items():
                 self.send_header(name, value)
             self.end_headers()

@@ -3,8 +3,9 @@
 Why streaming: time to the first content token (TTFT) is what a person waiting feels,
 and only a streamed reply shows it. Why every response header is kept verbatim: Table 1
 (Groq's real limits) and the phase-3 gateway are built from the x-ratelimit-* and
-retry-after headers, so nothing is filtered out. Why one base URL: config.BASE_URL (or
-RELAY_BASE_URL) is the only switch, so the phase-3 stand-in replaces Groq unchanged.
+retry-after headers, so nothing is filtered out except cookies (session tokens), and
+the Groq organization id is redacted from error bodies. Why one base URL: config.BASE_URL
+(or RELAY_BASE_URL) is the only switch, so the phase-3 stand-in replaces Groq unchanged.
 The key is read from the environment or .env, sent only as a request header, and request
 headers are never recorded, so it cannot reach a trace, the screen or an exception text.
 The real key is only ever sent to https://api.groq.com (key_for): any other base URL gets
@@ -24,6 +25,9 @@ import httpx
 import config
 
 KEY_PATTERN = re.compile(r"gsk_[A-Za-z0-9]+")
+ORG_PATTERN = re.compile(r"org_[A-Za-z0-9]+")  # Groq account id seen in 429 bodies
+# Cookies are session tokens, not limits; they are dropped before a record is saved.
+COOKIE_HEADERS = {"set-cookie", "set-cookie2", "cookie"}
 GROQ_HOST = "api.groq.com"
 STAND_IN_KEY = "stand-in-no-real-key"  # what every non-Groq host receives instead of the key
 
@@ -63,7 +67,13 @@ def describe_target(base_url):
 
 
 def redact(text):
-    return KEY_PATTERN.sub("gsk_[REDACTED]", text)
+    """Hide key-like strings and the Groq organization id before text is saved or shown."""
+    return ORG_PATTERN.sub("org_[REDACTED]", KEY_PATTERN.sub("gsk_[REDACTED]", text))
+
+
+def saved_headers(headers):
+    """Response headers to keep: all of them (x-ratelimit-*, retry-after, ...) minus cookies."""
+    return {name: value for name, value in headers.items() if name.lower() not in COOKIE_HEADERS}
 
 
 def estimate_tokens(text):
@@ -109,7 +119,8 @@ async def list_models(client, api_key, base_url=None):
     start = time.perf_counter()
     try:
         response = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
-        record["status"], record["headers"] = response.status_code, dict(response.headers)
+        record["status"] = response.status_code
+        record["headers"] = saved_headers(response.headers)
         if response.status_code == 200:
             record["ids"] = [m["id"] for m in response.json().get("data", [])]
         else:
@@ -139,7 +150,7 @@ async def stream_chat(client, model, messages, max_tokens, api_key, base_url=Non
             record["status"] = response.status_code
             # httpx lowercases header names and joins repeated headers with ", ";
             # fine for Groq's single-valued x-ratelimit-* and retry-after headers.
-            record["headers"] = dict(response.headers)
+            record["headers"] = saved_headers(response.headers)
             if response.status_code != 200:
                 record["error_body"] = redact((await response.aread()).decode(errors="replace"))
             else:

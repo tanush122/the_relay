@@ -119,3 +119,12 @@ def test_real_key_only_for_groq(monkeypatch):
         assert "NOT Groq" in llm.describe_target(url)
     sent_real = llm.key_for("https://api.groq.com/openai/v1") == KEY  # compared, never shown
     assert sent_real
+
+
+def test_cookies_and_org_not_saved(fake_groq):
+    r = chat(fake_groq)
+    assert "set-cookie" not in r["headers"] and "x-ratelimit-limit-tokens" in r["headers"]
+    fake_groq.limit_per_window = 0
+    r = chat(fake_groq)
+    assert "retry-after" in r["headers"]
+    assert "org_fake" not in r["error_body"] and "org_[REDACTED]" in r["error_body"]
