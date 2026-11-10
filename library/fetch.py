@@ -36,10 +36,9 @@ def version_evidence(paper, kind, data, final_url):
     tag = paper["arxiv_id"] + paper["version"]
     if kind == "html":
         text = data.decode("utf-8", errors="ignore")
-        # Prefer the paper's own watermark line, e.g. "arXiv:2410.00037v1 [eess.AS] 17 Sep 2024".
+        # Require the paper's own watermark line, e.g. "arXiv:2410.00037v1 [eess.AS] 17 Sep 2024".
+        # A bare "2410.00037v1" anywhere is not enough: a v2 page can link to v1.
         at = text.find("arXiv:" + tag)
-        if at < 0:
-            at = text.find(tag)
         if at < 0:
             return None
         return " ".join(text[at:at + 60].split("<")[0].split())

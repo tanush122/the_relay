@@ -1,4 +1,4 @@
-"""Piece splitting on hand-made fixture blocks (not paper text): no data or models needed."""
+"""Pieces and fetch checks on hand-made fixtures (not paper text): no data or models needed."""
 
 import config
 from library.pieces import _windows, make_pieces, words_for
@@ -24,3 +24,12 @@ def test_fixed_window_cited_under_majority_section():
     first = make_pieces({"attention": blocks}, "A")[0]
     assert first["text"].startswith("w2.2.2_0")  # starts in §2.2.2 ...
     assert first["section_number"] == "2.2.3"  # ... but most of it is §2.2.3
+
+
+def test_html_version_needs_the_watermark():
+    from library import fetch
+    moshi = next(p for p in config.PAPERS if p["key"] == "moshi")
+    v2_page = b"<p>arXiv:2410.00037v2 [eess.AS]</p><a href='/abs/2410.00037v1'>v1</a>"
+    assert fetch.version_evidence(moshi, "html", v2_page, "https://arxiv.org/html/x") is None
+    v1_page = b"<p>arXiv:2410.00037v1 [eess.AS] 17 Sep 2024</p>"
+    assert fetch.version_evidence(moshi, "html", v1_page, "u").startswith("arXiv:2410.00037v1")
