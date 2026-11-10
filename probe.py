@@ -157,8 +157,9 @@ def main(argv=None):
     total = print_plan(plan)
     if args.dry_run:
         return
+    print(llm.describe_target(args.base_url))
     llm.check_spend(total, args.confirm, args.max_tokens_total, allow_over_cap=True)
-    api_key = llm.load_api_key()
+    api_key = llm.key_for(args.base_url)
     if not api_key:
         print("No key in .env; paste it after GROQ_API_KEY= then rerun")
         raise SystemExit(2)

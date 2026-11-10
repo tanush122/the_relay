@@ -109,3 +109,13 @@ def test_base_url_switch(fake_groq):
     r = chat(fake_groq)
     assert r["url"].startswith(fake_groq.base_url)
     assert len(fake_groq.requests) == 1 and fake_groq.requests[0]["stream"] is True
+
+
+def test_real_key_only_for_groq(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", KEY)  # a fixture value standing in for the real key
+    for url in ("http://127.0.0.1:8000/openai/v1", "http://api.groq.com/openai/v1",
+                "https://api.groq.com.evil.example/openai/v1", "https://stand-in.local/v1"):
+        assert llm.key_for(url) == llm.STAND_IN_KEY
+        assert "NOT Groq" in llm.describe_target(url)
+    sent_real = llm.key_for("https://api.groq.com/openai/v1") == KEY  # compared, never shown
+    assert sent_real

@@ -84,8 +84,9 @@ def main(argv=None):
     if args.dry_run:
         print(f"Estimated spend: {estimate} tokens (dry run: no request sent)")
         return
+    print(llm.describe_target(config.BASE_URL))
     llm.check_spend(estimate, args.confirm, args.max_tokens_total)
-    api_key = llm.load_api_key()
+    api_key = llm.key_for(config.BASE_URL)
     if not api_key:
         print("No key: paste it into .env after GROQ_API_KEY= (never into chat)")
         raise SystemExit(2)

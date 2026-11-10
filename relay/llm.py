@@ -7,6 +7,8 @@ retry-after headers, so nothing is filtered out. Why one base URL: config.BASE_U
 RELAY_BASE_URL) is the only switch, so the phase-3 stand-in replaces Groq unchanged.
 The key is read from the environment or .env, sent only as a request header, and request
 headers are never recorded, so it cannot reach a trace, the screen or an exception text.
+The real key is only ever sent to https://api.groq.com (key_for): any other base URL gets
+a dummy key, so a typo, the test fake or the phase-3 stand-in never receives it.
 """
 
 import json
@@ -15,12 +17,15 @@ import re
 import time
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 import httpx
 
 import config
 
 KEY_PATTERN = re.compile(r"gsk_[A-Za-z0-9]+")
+GROQ_HOST = "api.groq.com"
+STAND_IN_KEY = "stand-in-no-real-key"  # what every non-Groq host receives instead of the key
 
 
 def load_api_key(env_path=None):
@@ -34,6 +39,27 @@ def load_api_key(env_path=None):
         if line.startswith("GROQ_API_KEY="):
             return line[len("GROQ_API_KEY="):].strip()
     return ""
+
+
+def is_real_groq(base_url):
+    """True only for https://api.groq.com (plain http would send the key in cleartext)."""
+    parts = urlparse(base_url)
+    return parts.scheme == "https" and parts.hostname == GROQ_HOST
+
+
+def key_for(base_url):
+    """The real key for Groq; a dummy key for every other host, so it cannot leak there."""
+    if is_real_groq(base_url):
+        return load_api_key()
+    return STAND_IN_KEY
+
+
+def describe_target(base_url):
+    """One line naming where requests go and which key they carry, printed before real runs."""
+    host = urlparse(base_url).hostname
+    if is_real_groq(base_url):
+        return f"Target: {host} (real Groq key)"
+    return f"Target: {host} (NOT Groq: dummy key sent, real key never loaded)"
 
 
 def redact(text):
