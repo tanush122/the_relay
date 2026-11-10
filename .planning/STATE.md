@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-11-10T05:24:21.149Z"
-last_activity: 2026-11-10 - Completed 01-03
+stopped_at: Completed 01-04-PLAN.md; next 01-05 (human-gated real run)
+last_updated: "2026-11-10T05:30:22.507Z"
+last_activity: 2026-11-10 - Completed 01-04
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-11-10)
 ## Current Position
 
 Phase: 1 of 4 (Foundations and probe)
-Plan: 3 of 5 in current phase (01-03 complete; next 01-04)
+Plan: 4 of 5 in current phase (01-04 complete; next 01-05, human-gated real run)
 Status: Executing phase 1
-Last activity: 2026-11-10 - Completed 01-03 (streaming client, ask.py, fake-server tests)
+Last activity: 2026-11-10 - Completed 01-04 (probe + Table 1 drafter, dry-run estimates recorded)
 
-Progress: [██████░░░░] 60% of phase 1 plans
+Progress: [████████░░] 80% of phase 1 plans
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 6 min
 - Total execution time: 0.0 hours
 
@@ -55,6 +55,7 @@ Progress: [██████░░░░] 60% of phase 1 plans
 | Phase 01 P01 | 5min | 3 tasks | 12 files |
 | Phase 01 P02 | 11min | 3 tasks | 8 files |
 | Phase 01 P03 | 3min | 2 tasks | 5 files |
+| Phase 01 P04 | 5min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Recent decisions affecting current work:
 - [Roadmap]: Phase structure fixed by docs/PLAN.md section 6; phases 2 and 3 overlap on Wed 11 Nov because the gateway and stand-in need no real quota.
 - [Phase 01]: requires_data expects data/manifest.json shaped {files:[{name}]}; plan 02 writes that shape
 - [Phase 01]: Setting A misses the H-Net ratio-loss phrase (window split); kept as strict xfail and Table 3 finding, pending Tanush
+- [Phase 01]: Probe dry-run upper bound 17,179 tokens (cap default 30,000); ask.py dry run 2,617; awaiting Tanush's cap approval for plan 05
 
 ### Pending Todos
 
@@ -86,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-11-10T05:24:21.147Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-11-10T05:30:22.505Z
+Stopped at: Completed 01-04-PLAN.md; next 01-05 (human-gated real run)
 Resume file: None

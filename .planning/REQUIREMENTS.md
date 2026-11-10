@@ -28,7 +28,7 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 - [x] **REAL-01**: An async streaming model client with a single base-URL setting talks to Groq or the stand-in unchanged (BRIEF: real hosted model on Groq free tier; stand-in replaces it)
 - [x] **REAL-02**: The client records per call: time to first token, total time, token usage and all rate-limit headers, and writes a per-request trace line (BRIEF: TTFT and total time; PLAN 3.9)
 - [ ] **REAL-03**: A probe sends a modest number of real requests (~50 spaced, then one deliberate burst) and saves raw status, headers, timings, usage and error bodies (BRIEF: what to run — first, modest number of real requests; latency spread, limits, behaviour at a limit)
-- [ ] **REAL-04**: A script drafts Table 1 from the raw probe files with every row: requests per minute, tokens per minute, requests per day, tokens per day, requests in flight at once, what it returns when a limit is hit, time until it recovers — columns Limit, Value found, How found, Confidence (BRIEF: Table 1)
+- [x] **REAL-04**: A script drafts Table 1 from the raw probe files with every row: requests per minute, tokens per minute, requests per day, tokens per day, requests in flight at once, what it returns when a limit is hit, time until it recovers — columns Limit, Value found, How found, Confidence (BRIEF: Table 1)
 - [ ] **REAL-05**: The daily limit is confirmed by exhausting the cheapest model once, late, when no other run needs quota — or Table 1 says how it was found otherwise (BRIEF: Table 1 requests/tokens per day; PLAN 4.1)
 
 ### Pipeline (PIPE)
@@ -147,8 +147,8 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | LIB-05 | Phase 1 | Complete |
 | REAL-01 | Phase 1 | Complete |
 | REAL-02 | Phase 1 | Complete |
-| REAL-03 | Phase 1 | Pending |
-| REAL-04 | Phase 1 | Pending |
+| REAL-03 | Phase 1 | Pending (built + dry-run; real run is plan 05) |
+| REAL-04 | Phase 1 | Complete |
 | REAL-05 | Phase 4 | Pending |
 | PIPE-01 | Phase 2 | Pending |
 | PIPE-02 | Phase 2 | Pending |
