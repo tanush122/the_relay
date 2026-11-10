@@ -9,10 +9,10 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 
 ### Environment and hygiene (ENV)
 
-- [ ] **ENV-01**: Project runs on Python 3.12 via uv with pinned dependencies (BRIEF: Python; PLAN 6 phase 1)
-- [ ] **ENV-02**: Groq key is read only from a git-ignored .env; .env.example ships with an empty `GROQ_API_KEY=`; key never printed, logged or committed (BRIEF ground rule: do not include your key)
-- [ ] **ENV-03**: A test or pre-commit guard fails if a string starting with `gsk_` appears in any tracked file (BRIEF ground rule: key)
-- [ ] **ENV-04**: Every tunable (limits, deadlines, ladder thresholds, retry policy, retrieval setting, model names) lives in one config module, so a live change is a one-line edit (PLAN 5.7)
+- [x] **ENV-01**: Project runs on Python 3.12 via uv with pinned dependencies (BRIEF: Python; PLAN 6 phase 1)
+- [x] **ENV-02**: Groq key is read only from a git-ignored .env; .env.example ships with an empty `GROQ_API_KEY=`; key never printed, logged or committed (BRIEF ground rule: do not include your key)
+- [x] **ENV-03**: A test or pre-commit guard fails if a string starting with `gsk_` appears in any tracked file (BRIEF ground rule: key)
+- [x] **ENV-04**: Every tunable (limits, deadlines, ladder thresholds, retry policy, retrieval setting, model names) lives in one config module, so a live change is a one-line edit (PLAN 5.7)
 - [ ] **ENV-05**: Every real Groq run prints its estimated token spend first and refuses to run without an explicit confirmation flag and a per-run hard token cap (BRIEF: plan your requests; PLAN 5.3)
 
 ### Library and retrieval (LIB)
@@ -135,10 +135,10 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENV-01 | Phase 1 | Pending |
-| ENV-02 | Phase 1 | Pending |
-| ENV-03 | Phase 1 | Pending |
-| ENV-04 | Phase 1 | Pending |
+| ENV-01 | Phase 1 | Complete |
+| ENV-02 | Phase 1 | Complete |
+| ENV-03 | Phase 1 | Complete |
+| ENV-04 | Phase 1 | Complete |
 | ENV-05 | Phase 1 | Pending |
 | LIB-01 | Phase 1 | Pending |
 | LIB-02 | Phase 1 | Pending |
@@ -209,6 +209,7 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | SUB-03 | Phase 4 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 72 total (revised 10 Nov: EVAL-06 dropped; PIPE-07, GW-09, DATA-10 added)
 - Mapped to phases: 72 (Phase 1: 14, Phase 2: 18, Phase 3: 16, Phase 4: 24)
 - Unmapped: 0
