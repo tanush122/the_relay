@@ -1,0 +1,8 @@
+#!/bin/sh
+# Optional hook: blocks a commit if any tracked file holds a gsk_ Groq key.
+# Enabled repo-locally with: git config core.hooksPath .githooks
+# Note: it scans the index (git ls-files), so staged new files are covered.
+"$HOME/.local/bin/uv" run --quiet pytest -q tests/test_no_keys.py || {
+    echo "pre-commit: key-leak guard failed; commit blocked." >&2
+    exit 1
+}
