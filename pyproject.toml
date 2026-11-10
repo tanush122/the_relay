@@ -1,0 +1,29 @@
+[project]
+name = "the-relay"
+version = "0.1.0"
+description = "Cited question answering over three arXiv papers on Groq's free tier, measured under bursty load."
+requires-python = ">=3.12,<3.13"
+# Pinned with == so every run (and every number in results.csv) uses the same code.
+dependencies = [
+    "beautifulsoup4==4.15.0",
+    "httpx==0.28.1",
+    "lxml==6.1.3",
+    "rank-bm25==0.2.2",
+    "sentence-transformers==6.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+]
+
+[tool.uv]
+# Scripts are run as files (uv run python ...), not installed as a package.
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "needs_data: needs downloaded papers or local models (skips cleanly when absent)",
+]
