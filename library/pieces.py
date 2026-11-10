@@ -7,6 +7,8 @@ with "Paper vN > §section path" so the reader (and the model) knows where it ca
 Sizes are in tokens in config and turned into words with config.TOKENS_PER_WORD.
 """
 
+from collections import Counter
+
 import config
 
 SHORT = {p["key"]: p["short"] for p in config.PAPERS}
@@ -17,19 +19,31 @@ def words_for(tokens):
 
 
 def _windows(words, size, stride):
-    """Start indices of sliding windows covering every word."""
-    starts = list(range(0, max(1, len(words) - size + stride), stride))
-    return [s for s in starts if s < len(words)] or [0]
+    """Start indices of sliding windows that together cover every word.
+
+    Start at 0; while the current window ends before the last word, start another one
+    `stride` words later. The last window may be shorter than `size`.
+    """
+    starts = [0]
+    while starts[-1] + size < len(words):
+        starts.append(starts[-1] + stride)
+    return starts
 
 
 def _fixed(blocks, s):
-    """A/B: slide one window over the whole paper's words, ignoring structure."""
-    words = [(w, block) for block in blocks for w in block["text"].split()]
+    """A/B: slide one window over the whole paper's words, ignoring structure.
+
+    A window may straddle a section boundary. It is cited under the block holding most
+    of its words (the earlier block on a tie), not the block of its first word, so a
+    window that merely starts at the end of §2.2.2 is cited as §2.2.3.
+    """
+    words = [(w, i) for i, block in enumerate(blocks) for w in block["text"].split()]
     size = words_for(s["piece_tokens"])
     stride = words_for(s["piece_tokens"] - s["overlap_tokens"])
     for start in _windows(words, size, stride):
         window = words[start:start + size]
-        yield window[0][1], " ".join(w for w, _ in window)
+        majority_block = Counter(i for _, i in window).most_common(1)[0][0]
+        yield blocks[majority_block], " ".join(w for w, _ in window)
 
 
 def _by_section(blocks, s):
