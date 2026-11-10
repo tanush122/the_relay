@@ -35,3 +35,9 @@ One row per decision. "Tanush's call" is filled only from his own words; "pendin
 | Empty-field rule for results.csv fields that do not apply, enforced by the validator (new DATA-10, phase 2) | Add | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
 | Keep 18 evaluation questions (checker suggested 15) | 18 | Tanush: keep 18 | 2026-11-10 |
 | EVAL-06 (smaller-model quality eval) dropped, follows from removing the small-model rung | Drop | applied on Tanush's instruction to prefer the pragmatic real-world option (9 Nov) | 2026-11-10 |
+| uv installed with the official installer and UV_NO_MODIFY_PATH=1 (no shell profile edits; uv lives at ~/.local/bin/uv) | As done | assistant default, pending Tanush | 2026-11-10 |
+| Hugging Face model cache kept inside the project (.cache/huggingface, git-ignored), not ~/.cache | As done | assistant default, pending Tanush | 2026-11-10 |
+| DRAFT_MODEL provisionally llama-3.1-8b-instant until the probe shows the candidates | Provisional | assistant default, pending Tanush | 2026-11-10 |
+| Piece id format paper-setting-NNN (e.g. moshi-C-012), cited in square brackets | As built | assistant default, pending Tanush | 2026-11-10 |
+| Token counts for estimates are approximate (words x TOKENS_PER_WORD 1.33 + 8 per message); real counts come from Groq usage | As built | assistant default, pending Tanush | 2026-11-10 |
+| Probe stage sizes live in config.PROBE; probe dry-run upper-bound estimate 17,179 tokens against the default cap 30,000; ask.py dry run (setting C, Mimi question) 2,617 tokens | As built | assistant default, pending Tanush | 2026-11-10 |
