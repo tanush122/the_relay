@@ -110,3 +110,32 @@ def test_pieces_per_setting(blocks):
         assert first_line.startswith(shorts) and "§" in first_line
     table_blocks = sum(b["kind"] == "table" for bl in blocks.values() for b in bl)
     assert sum(p["kind"] == "table" for p in pieces["C"]) == table_blocks
+
+
+def test_moshi_table18_cited_under_appendix_e(blocks):
+    moshi = blocks["moshi"]
+    table18 = [b for b in moshi if b["kind"] == "table" and b["text"].startswith("Table 18")]
+    assert len(table18) == 1 and table18[0]["section_number"] == "E"
+    assert table18[0]["section_title"] == "Safety and Toxicity"
+
+
+def test_figure_captions_kept(blocks):
+    # Counts of image-figure captions in the cached HTML (checked by hand against the files).
+    captions = {key: sum(b["kind"] == "caption" for b in bl) for key, bl in blocks.items()}
+    assert captions == {"attention": 5, "moshi": 11, "hnet": 18}  # incl. sub-figures "(a) ..."
+
+
+def test_every_section_with_prose_has_a_block(blocks):
+    from bs4 import BeautifulSoup
+    from library import parse
+    for paper in config.PAPERS:
+        soup = BeautifulSoup(fetch.raw_path(paper, "html").read_text(encoding="utf-8"), "lxml")
+        numbers = {b["section_number"] for b in blocks[paper["key"]]}
+        for section in soup.find_all(parse._is_section):
+            if "ltx_bibliography" in section.get("class", []):
+                continue
+            prose = [p for p in section.select(".ltx_para") if parse._owner(p) is section
+                     and not p.find("table") and p.get_text().strip()]
+            if prose:
+                number, _ = parse._heading(section, None)
+                assert number in numbers or number == "-", (paper["key"], section.get("id"))

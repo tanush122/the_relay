@@ -2,6 +2,8 @@
 
 Why HTML, not PDF: arXiv's HTML (made by LaTeXML) keeps headings, section numbers and
 tables as structure, so every block knows "paper vN, §3.3 title" without guessing.
+Block kinds: "text" (a section's own paragraphs), "caption" (an image figure's caption)
+and "table" (caption plus rows, kept whole).
 Why math becomes cleaned alttext: the formula d_{ff}=2048 turns into "d_ff=2048", so
 BM25 can match the symbol and the model can read it. Font commands (\\text, \\mathrm, ...)
 are dropped, then "{", "}" and "\\" are removed; other command names (e.g. "times") stay.
@@ -45,16 +47,53 @@ def _heading(section, parent_number):
     return number, _clean(full[len(tag_text):]) if full.startswith(tag_text) else full
 
 
+def _already_in_float(el, section):
+    """True if el's text is emitted elsewhere, as a caption or table block.
+
+    A paragraph in a float inside this section belongs to that float. LaTeXML sometimes
+    wraps a whole section in another section's table float (Moshi: Appendix E sits inside
+    Table 18's float); there, prose paragraphs are kept, and only a paragraph holding the
+    table itself is skipped, because the table block already has its rows.
+    """
+    figure = el.find_parent("figure")
+    if figure is None:
+        return False
+    if _owner(figure) is section:
+        return True
+    return el.find("table") is not None
+
+
 def _own_text(section):
     """Top-level paragraphs and run-in paragraph titles that belong to this section only."""
     parts = []
     for el in section.select(".ltx_para, section.ltx_paragraph > .ltx_title"):
-        if _owner(el) is not section or el.find_parent("figure"):
+        if _owner(el) is not section or _already_in_float(el, section):
             continue
         if "ltx_para" in el.get("class", []) and el.find_parent(class_="ltx_para"):
             continue  # nested paragraph (e.g. inside a list): already in its outer paragraph
         parts.append(_clean(el.get_text(" ")))
     return "\n\n".join(p for p in parts if p)
+
+
+def _captions(section):
+    """Captions of this section's image figures: they often state facts the text does not."""
+    captions = []
+    for figure in section.select("figure.ltx_figure"):
+        caption = figure.find("figcaption", recursive=False)
+        if caption and _owner(figure) is section:
+            captions.append(_clean(caption.get_text(" ")))
+    return [c for c in captions if c]
+
+
+def _table_home(figure):
+    """The section a table belongs to.
+
+    LaTeXML sometimes nests a section inside a table's float (Moshi: Appendix A inside
+    Table 17, Appendix E inside Table 18). The table then belongs to that inner section,
+    not the section around the float. A table outside every section takes the section
+    heading just before it.
+    """
+    return figure.find(_is_section) or _owner(figure) or figure.find_previous(_is_section)
 
 
 def _table_text(figure):
@@ -85,6 +124,9 @@ def parse_html(paper, html):
         blocks.append({**base, "section_number": "0", "section_title": "Abstract",
                        "section_path": "0 Abstract", "kind": "text", "text": text})
 
+    tables = [f for f in soup.select("figure.ltx_table")
+              if not f.find_parent("figure", class_="ltx_table")]  # nested ones are inside
+    homes = [(figure, _table_home(figure)) for figure in tables]
     info = {}  # section element -> (number, title, path)
     for section in soup.find_all(_is_section):
         parent_number, _, parent_path = info.get(_owner(section), (None, None, ""))
@@ -95,20 +137,11 @@ def parse_html(paper, html):
         text = _own_text(section)
         if text:
             blocks.append({**meta, "kind": "text", "text": text})
-        for figure in section.select("figure.ltx_table"):
-            if _owner(figure) is section and not figure.find_parent("figure", class_="ltx_table"):
+        for caption in _captions(section):
+            blocks.append({**meta, "kind": "caption", "text": caption})
+        for figure, home in homes:
+            if home is section:
                 blocks.append({**meta, "kind": "table", "text": _table_text(figure)})
-    # LaTeXML sometimes leaves a table outside every section: in Moshi, the Appendix A
-    # heading sits inside Table 17's own float. Use a heading inside the table if there is
-    # one, otherwise the section heading just before it.
-    for figure in soup.select("figure.ltx_table"):
-        if _owner(figure) is not None or figure.find_parent("figure", class_="ltx_table"):
-            continue
-        target = figure.find(_is_section) or figure.find_previous(_is_section)
-        if target in info:
-            number, title, path = info[target]
-            blocks.append({**base, "section_number": number, "section_title": title,
-                           "section_path": path, "kind": "table", "text": _table_text(figure)})
     return blocks
 
 

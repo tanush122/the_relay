@@ -31,18 +31,19 @@ def indexes():
     return {s: build_index(blocks, s) for s in "ABC"}
 
 
-# Real finding (Table 3 material, not hidden): under A's small fixed windows the sentence
-# "we introduce a ratio loss" and its formula land in a window that starts in §2.2.2 and
-# ranks ~45th; the top A windows are the rest of §2.2.3 (about L_ratio) without the phrase.
-# strict=True: if A ever starts passing, this marker must be removed.
-A_RATIO_LOSS_MISS = pytest.mark.xfail(
-    strict=True, reason="setting A splits the H-Net ratio-loss definition from its section")
+# Real finding (Table 3 material, not hidden). Fixed windows move whenever the parsed text
+# changes. Before figure captions were parsed (review HI-04), A missed the H-Net ratio loss
+# and B found it. With captions, A finds it (4th) and B's 600-token window holding
+# "we introduce a ratio loss" ranks 8th, outside B's 4 pieces; B's top windows are the
+# rest of §2.2.3 and §3 without the phrase. strict=True: if B starts passing, remove this.
+B_RATIO_LOSS_MISS = pytest.mark.xfail(
+    strict=True, reason="setting B's large fixed window with the ratio-loss sentence ranks 8th")
 
 
 def _cases():
     for paper, question, expected in FACTS:
         for setting in "ABC":
-            marks = A_RATIO_LOSS_MISS if (paper, setting) == ("hnet", "A") else ()
+            marks = B_RATIO_LOSS_MISS if (paper, setting) == ("hnet", "B") else ()
             yield pytest.param(setting, paper, question, expected, marks=marks,
                                id=f"{setting}-{paper}")
 
