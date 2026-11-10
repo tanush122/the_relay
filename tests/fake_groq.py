@@ -22,6 +22,8 @@ class FakeGroq:
         self.stream_error = None  # when set, sent as an error event after the content
         self.done_line = b"data: [DONE]\n\n"
         self.force_status = None  # when set, every chat request gets this error status
+        self.model_ids = ["fake-model"]  # what GET /models lists
+        self.limit_requests, self.limit_tokens = "1000", "6000"  # fixture header values
         self.requests = []  # bodies received by the chat endpoint
         self.auth_headers = []  # Authorization values received (to prove no real key arrives)
         self._window_start = time.monotonic()
@@ -71,7 +73,7 @@ def _handler(fake):
 
         def do_GET(self):
             if self.path == "/openai/v1/models" and self._authorised():
-                self._json(200, {"data": [{"id": "fake-model"}]})
+                self._json(200, {"data": [{"id": m} for m in fake.model_ids]})
 
         def do_POST(self):
             length = int(self.headers.get("content-length", 0))
@@ -97,10 +99,10 @@ def _handler(fake):
             self.send_header("content-type", "text/event-stream")
             self.send_header("transfer-encoding", "chunked")
             for name, value in {
-                "x-ratelimit-limit-requests": "1000",
+                "x-ratelimit-limit-requests": fake.limit_requests,
                 "x-ratelimit-remaining-requests": str(max(0, 1000 - len(fake.requests))),
                 "x-ratelimit-reset-requests": "1m26.4s",
-                "x-ratelimit-limit-tokens": "6000",
+                "x-ratelimit-limit-tokens": fake.limit_tokens,
                 "x-ratelimit-remaining-tokens": "5975",
                 "x-ratelimit-reset-tokens": "7.66s",
                 "set-cookie": "__cf_bm=fixture-cookie; path=/",  # must not be saved
