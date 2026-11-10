@@ -121,6 +121,7 @@ class ProbeRun:
         self.t0 = time.monotonic()
         self.reserved = 0  # estimates of requests sent but not yet answered
         self.last_429 = None  # received_s of the latest burst's first 429 of the right kind
+        self.replies = {}  # stage -> [200 replies, of which had visible text]
         self.summary = {
             "profile": profile, "base_url_host": urlparse(base_url).hostname, "cap": cap,
             "estimated_total": estimated_total, "spent": 0, "usage_reported": 0,
@@ -199,7 +200,22 @@ class ProbeRun:
         self.summary["requests_sent"] += 1
         self.save(record, r, sent_s)
         self.check(record)
+        if record["status"] == 200:
+            seen = self.replies.setdefault(r["stage"], [0, 0])
+            seen[0] += 1
+            seen[1] += bool(record["content"])
         return record
+
+    def check_visible_text(self, stage, after):
+        """Stop once `after` replies of a stage came back with reasoning only, no visible text.
+
+        A reasoning model can spend all of max_tokens thinking; then there is no TTFT to
+        measure and the rest of the run would waste tokens on a broken request shape.
+        """
+        replies, with_text = self.replies.get(stage, [0, 0])
+        if replies >= after and with_text == 0:
+            self.stop(f"pause: {replies} {stage} replies had no visible text "
+                      f"(reasoning only?); fix the request shape before spending more")
 
     async def send_group(self, rows):
         """Send rows at once; None if the run has stopped or they could pass the cap."""
@@ -233,6 +249,12 @@ class ProbeRun:
                 await asyncio.sleep(gap_s)
             if await self.send_group([r]) is None:
                 return
+            if r["stage"] == "spaced":
+                self.check_visible_text("spaced", after=3)
+                if self.stopped:
+                    return
+        if rows[0]["stage"] == "header_sample":
+            self.check_visible_text("header_sample", after=1)
 
     async def burst(self, stage, rows):
         """Waves of requests until the first 429; its time counts only if it names our limit."""

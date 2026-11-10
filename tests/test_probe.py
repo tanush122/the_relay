@@ -144,3 +144,10 @@ def test_interrupted_run_still_writes_summary(fake_groq, tmp_path, monkeypatch):
     run_dir = next(tmp_path.glob("run_*"))
     saved = json.loads((run_dir / "run.json").read_text())
     assert saved["stopped_reason"] == "interrupted" and saved["requests_sent"] > 0
+
+
+def test_pause_when_replies_have_reasoning_but_no_text(fake_groq, tmp_path):
+    fake_groq.reply_text, fake_groq.reasoning_text = "", "thinking about it"
+    summary, records = run_small(fake_groq, tmp_path, cap=100000)
+    assert summary["stopped_reason"].startswith("pause: 1 header_sample replies had no visible")
+    assert "spaced" not in [r["stage"] for r in records]
