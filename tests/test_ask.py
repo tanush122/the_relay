@@ -57,11 +57,14 @@ def test_draft_against_fake(fake_groq, tmp_path, capsys):
     fake_groq.reply_text = "d_ff is 2048 [attention-C-001]."
     trace = tmp_path / "ask.jsonl"
     record = asyncio.run(ask.draft("What is d_ff?", PIECES, "test-key-123",
-                                   base_url=fake_groq.base_url, trace_path=trace))
+                                   base_url=fake_groq.base_url, trace_path=trace, cap=1000))
     assert record["status"] == 200 and record["content"] == fake_groq.reply_text
     lines = trace.read_text().splitlines()
     assert len(lines) == 1 and json.loads(lines[0])["tag"] == "ask"
-    assert "[attention-C-001] -> Attention v7, §" in capsys.readouterr().out
+    assert json.loads(lines[0])["cap"] == 1000
+    out = capsys.readouterr().out
+    assert "[attention-C-001] -> Attention v7, §" in out
+    assert "Actual spend: 25 tokens; cap 1000" in out  # 25 is the fake's fixture usage
 
 
 def test_refuses_without_confirm(monkeypatch):

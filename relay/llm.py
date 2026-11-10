@@ -28,6 +28,8 @@ KEY_PATTERN = re.compile(r"gsk_[A-Za-z0-9]+")
 ORG_PATTERN = re.compile(r"org_[A-Za-z0-9]+")  # Groq account id seen in 429 bodies
 # Cookies are session tokens, not limits; they are dropped before a record is saved.
 COOKIE_HEADERS = {"set-cookie", "set-cookie2", "cookie"}
+# A Groq 429 body names the limit it hit, e.g. "requests per minute (RPM): Limit 30".
+LIMIT_IN_BODY = re.compile(r"\((RPM|TPM|RPD|TPD)\): Limit (\d+)")
 GROQ_HOST = "api.groq.com"
 STAND_IN_KEY = "stand-in-no-real-key"  # what every non-Groq host receives instead of the key
 
@@ -71,14 +73,22 @@ def redact(text):
     return ORG_PATTERN.sub("org_[REDACTED]", KEY_PATTERN.sub("gsk_[REDACTED]", text))
 
 
+def limit_kind(error_body):
+    """Return "RPM", "TPM", "RPD" or "TPD" when an error body names its limit, else None."""
+    match = LIMIT_IN_BODY.search(error_body or "")
+    return match.group(1) if match else None
+
+
 def saved_headers(headers):
     """Response headers to keep: all of them (x-ratelimit-*, retry-after, ...) minus cookies."""
     return {name: value for name, value in headers.items() if name.lower() not in COOKIE_HEADERS}
 
 
 def estimate_tokens(text):
-    # Rough: words x TOKENS_PER_WORD plus a little message overhead; real counts come from usage.
-    return int(len(text.split()) * config.TOKENS_PER_WORD) + 8
+    """Upper-bound guess of one request's prompt tokens (see config); real counts come from usage."""
+    by_words = len(text.split()) * config.TOKENS_PER_WORD
+    by_chars = len(text) / config.CHARS_PER_TOKEN
+    return int(max(by_words, by_chars)) + config.REQUEST_OVERHEAD_TOKENS
 
 
 def check_spend(estimate, confirm, cap, allow_over_cap=False):
@@ -89,6 +99,9 @@ def check_spend(estimate, confirm, cap, allow_over_cap=False):
         raise SystemExit(2)
     if cap is None:
         print("Refusing: pass --max-tokens-total N")
+        raise SystemExit(2)
+    if cap <= 0:
+        print("Refusing: --max-tokens-total must be a positive number of tokens")
         raise SystemExit(2)
     if estimate > cap:
         if not allow_over_cap:

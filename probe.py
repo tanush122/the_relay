@@ -1,23 +1,33 @@
 """Probe Groq's real limits and latency, saving every raw response as evidence for Table 1.
 
-What each stage measures and why (design: assistant default, pending Tanush):
-- models: a free GET that confirms which candidate models exist.
-- header_sample: one request per model; shows each model's x-ratelimit-* headers and
-  whether a reasoning model (gpt-oss) streams reasoning before the first content token.
+Profiles (config.PROBE["profiles"]): "lean" is the default (approved by Tanush); "full"
+adds the token-limit burst, its recovery and the max_tokens pair, and runs only when
+--profile full is given. Each stage stops as soon as its question is answered:
+- models: a free GET listing which candidate models exist.
+- header_sample: one request per existing candidate model, for its x-ratelimit-* headers
+  and whether a reasoning model (gpt-oss) streams reasoning before the first content token.
 - spaced: small requests a few seconds apart, for the latency (TTFT) spread.
-- rpm_burst / tpm_burst: headers only show requests/day and tokens/minute, so the
-  per-minute request limit and daily limits come from 429 bodies. Two bursts, so the
-  request limit (many tiny requests) and token limit (a few large prompts) trip separately.
-- recovery_*: after a burst's 429, a tiny request every few seconds until the first 200.
-- concurrency: 1, 2, 4, 8 requests at once, to give "requests in flight" a method.
-- max_tokens_pair: max_tokens 50 vs 1000 on the same prompt: is max_tokens charged at admission?
-Real mode refuses without --confirm and --max-tokens-total, and stops before the running
-spend could pass the cap. Dry run: uv run python probe.py --dry-run
+- rpm_burst: tiny requests in small waves, stopping at the first 429. Headers do not show
+  the per-minute request limit; the 429 body does.
+- recovery_rpm: one tiny request every few seconds, stopping at the first 200.
+- tpm_burst / recovery_tpm (full only): a few large prompts one at a time, after waiting out
+  the request window, stopping at the first 429; then recovery as above.
+- concurrency: 1, 2, 4, 8 requests at once, stopping after the first level that gets a 429.
+- max_tokens_pair (full only): max_tokens 50 vs 1000 on the same prompt.
+
+The cap bounds actual spend. Each request's estimate (prompt upper bound + chat-template
+overhead + max_tokens) is reserved before it is sent, and no request is sent if
+actual-so-far + reserved + its estimate would pass the cap. A response without usage is
+charged its whole estimate. The run aborts, keeping what it saved, on any unexpected
+answer: 401/403 or any other non-200/429 status, no response, a 429 during header_sample
+or spaced, a daily-limit 429, or a header limit under half of config.DOCUMENTED_LIMITS.
+It reports instead of retrying. run.json is rewritten after every stage and on Ctrl-C.
+
+  uv run python probe.py --dry-run [--profile full]
 """
 
 import argparse
 import asyncio
-import itertools
 import json
 import time
 from datetime import datetime, timezone
@@ -27,32 +37,63 @@ from urllib.parse import urlparse
 import config
 from relay import llm
 
-
-def _req(stage, model, prompt, max_tokens, group):
-    return {"stage": stage, "model": model, "prompt": prompt, "max_tokens": max_tokens,
-            "est_tokens": llm.estimate_tokens(prompt) + max_tokens, "group": group}
+BURST_KIND = {"rpm_burst": "RPM", "tpm_burst": "TPM"}  # the limit each burst should trip
+NO_429_EXPECTED = {"header_sample", "spaced"}  # a 429 here means something is wrong
 
 
-def plan_requests(p=config.PROBE):
-    """Every request the probe may send, in order. Recovery polls count at their maximum."""
+def _req(stage, group, model, prompt, max_tokens):
+    return {"stage": stage, "group": group, "model": model, "prompt": prompt,
+            "max_tokens": max_tokens, "est_tokens": llm.estimate_tokens(prompt) + max_tokens}
+
+
+def _filler(tokens):
+    """A long, harmless prompt of roughly `tokens` tokens for the token-limit burst."""
+    sentence = "The library holds three papers about sequence models and speech."
+    words = []
+    while len(words) < tokens / config.TOKENS_PER_WORD:
+        words += sentence.split()
+    return " ".join(words)
+
+
+def stage_rows(stage, p):
+    """Every request one stage may send. Bursts, recovery and the ramp count at their maximum."""
     main, small, tiny = p["main_model"], p["small_prompt"], p["small_max_tokens"]
-    words = "The library holds three papers about sequence models and speech. ".split()
-    filler = " ".join(itertools.islice(itertools.cycle(words),
-                                       int(p["tpm_burst_prompt_tokens"] / config.TOKENS_PER_WORD)))
-    plan = [{"stage": "models", "model": None, "prompt": "", "max_tokens": 0,
-             "est_tokens": 0, "group": "models"}]
-    plan += [_req("header_sample", m, small, p["header_sample_max_tokens"], f"header-{m}")
-             for m in p["models"]]
-    plan += [_req("spaced", main, small, tiny, f"spaced-{i}") for i in range(p["spaced_requests"])]
-    plan += [_req("rpm_burst", main, small, tiny, "rpm_burst")] * p["rpm_burst_requests"]
-    plan += [_req("recovery_rpm", main, small, tiny, "recovery_rpm")] * p["recovery_max_polls"]
-    plan += [_req("tpm_burst", main, f"{filler}\n{small}", p["tpm_burst_max_tokens"],
-                  "tpm_burst")] * p["tpm_burst_requests"]
-    plan += [_req("recovery_tpm", main, small, tiny, "recovery_tpm")] * p["recovery_max_polls"]
-    for level in p["concurrency_levels"]:
-        plan += [_req("concurrency", main, small, tiny, f"concurrency-{level}")] * level
-    plan += [_req("max_tokens_pair", main, small, n, f"pair-{n}") for n in p["max_tokens_pair"]]
-    return [dict(r) for r in plan]  # copies, so repeated entries are independent
+    if stage == "models":
+        return [{"stage": stage, "group": stage, "model": None, "prompt": "",
+                 "max_tokens": 0, "est_tokens": 0}]
+    if stage == "header_sample":
+        return [_req(stage, f"header-{m}", m, small, p["header_sample_max_tokens"])
+                for m in p["models"]]
+    if stage == "spaced":
+        return [_req(stage, f"spaced-{i}", main, small, tiny) for i in range(p["spaced_requests"])]
+    if stage == "rpm_burst":
+        return [_req(stage, stage, main, small, tiny) for _ in range(p["rpm_burst_requests"])]
+    if stage == "tpm_burst":
+        prompt = f"{_filler(p['tpm_burst_prompt_tokens'])}\n{small}"
+        return [_req(stage, stage, main, prompt, p["tpm_burst_max_tokens"])
+                for _ in range(p["tpm_burst_requests"])]
+    if stage in ("recovery_rpm", "recovery_tpm"):
+        return [_req(stage, stage, main, small, tiny) for _ in range(p["recovery_max_polls"])]
+    if stage == "concurrency":
+        rows = []
+        for level in p["concurrency_levels"]:
+            rows += [_req(stage, f"concurrency-{level}", main, small, tiny) for _ in range(level)]
+        return rows
+    if stage == "max_tokens_pair":
+        return [_req(stage, f"pair-{n}", main, small, n) for n in p["max_tokens_pair"]]
+    raise ValueError(f"unknown probe stage: {stage}")
+
+
+def plan_requests(p=config.PROBE, profile=None):
+    """Every request the profile may send, stage by stage in the profile's order."""
+    plan = []
+    for stage in p["profiles"][profile or p["default_profile"]]:
+        plan += stage_rows(stage, p)
+    return plan
+
+
+def stages_of(plan):
+    return list(dict.fromkeys(r["stage"] for r in plan))  # in order, each once
 
 
 def print_plan(plan, p=config.PROBE):
@@ -60,89 +101,229 @@ def print_plan(plan, p=config.PROBE):
         est_in = r["est_tokens"] - r["max_tokens"]
         print(f"{i:4d}  {r['stage']:<16} {r['model'] or '-':<26} in~{est_in:<5} "
               f"max_out {r['max_tokens']:<5} est {r['est_tokens']}")
-    for stage, rows in itertools.groupby(plan, key=lambda r: r["stage"]):
-        rows = list(rows)
-        print(f"subtotal {stage:<16} {len(rows):3d} requests  {sum(r['est_tokens'] for r in rows)} tokens")
+    for stage in stages_of(plan):
+        rows = [r for r in plan if r["stage"] == stage]
+        print(f"subtotal {stage:<16} {len(rows):3d} requests  "
+              f"{sum(r['est_tokens'] for r in rows)} tokens")
     total = sum(r["est_tokens"] for r in plan)
+    print("(bursts, recovery polls and the concurrency ramp stop early; counted at their maximum)")
     print(f"ESTIMATED TOTAL: {total} tokens (upper bound; default cap {p['default_cap']})")
     return total
 
 
-async def run_probe(plan, api_key, cap, out_dir, base_url=None, p=config.PROBE):
-    """Send the plan, never letting reserved + spent tokens pass cap; save every record."""
+class ProbeRun:
+    """One real run: the token ledger, the raw log (requests.jsonl) and the summary (run.json)."""
+
+    def __init__(self, client, api_key, cap, run_dir, base_url, p, profile, estimated_total):
+        self.client, self.api_key, self.cap = client, api_key, cap
+        self.run_dir, self.base_url, self.p = run_dir, base_url, p
+        self.log = run_dir / "requests.jsonl"
+        self.t0 = time.monotonic()
+        self.reserved = 0  # estimates of requests sent but not yet answered
+        self.last_429 = None  # received_s of the latest burst's first 429 of the right kind
+        self.summary = {
+            "profile": profile, "base_url_host": urlparse(base_url).hostname, "cap": cap,
+            "estimated_total": estimated_total, "spent": 0, "usage_reported": 0,
+            "reserved_unsettled": 0, "requests_sent": 0, "stopped_reason": "running",
+            "models_missing": [], "recovery_rpm_s": None, "recovery_tpm_s": None,
+            "recovery_poll_interval_s": p["recovery_poll_interval_s"], "notes": []}
+
+    def clock(self):
+        return round(time.monotonic() - self.t0, 3)
+
+    @property
+    def stopped(self):
+        return self.summary["stopped_reason"] != "running"
+
+    def stop(self, reason):
+        if not self.stopped:  # the first reason wins
+            self.summary["stopped_reason"] = reason
+
+    def note(self, text):
+        self.summary["notes"].append(text)
+
+    def write_summary(self):
+        self.summary["reserved_unsettled"] = self.reserved  # > 0 only if cut off mid-request
+        (self.run_dir / "run.json").write_text(json.dumps(self.summary, indent=2) + "\n")
+
+    def save(self, record, r, sent_s):
+        record.update(stage=r["stage"], group=r["group"], planned_est=r["est_tokens"],
+                      sent_s=sent_s, received_s=self.clock(),
+                      limit_kind=llm.limit_kind(record.get("error_body")))
+        record.setdefault("model", r["model"])  # the /models record has no model of its own
+        llm.write_trace(record, self.log)
+
+    def limits_too_low(self, record):
+        """A reason if a header limit is far under the documented value, else None."""
+        documented = config.DOCUMENTED_LIMITS.get(record["model"])
+        if not documented:
+            return None
+        for header, name in (("x-ratelimit-limit-requests", "requests_per_day"),
+                             ("x-ratelimit-limit-tokens", "tokens_per_minute")):
+            value = record["headers"].get(header, "")
+            if value.isdigit() and int(value) < self.p["low_limit_fraction"] * documented[name]:
+                return (f"{record['model']} {header}={value} is under "
+                        f"{self.p['low_limit_fraction']} x the documented {documented[name]}")
+        return None
+
+    def check(self, record):
+        """Abort on any answer the probe does not expect: report, never retry."""
+        status, stage = record["status"], record["stage"]
+        if status == 200 and (record.get("exception") or record.get("error_body")):
+            self.stop(f"abort: stream failed during {stage}")
+        elif status == 200:
+            too_low = self.limits_too_low(record)
+            if too_low:
+                self.stop(f"abort: {too_low}")
+        elif status == 429 and record["limit_kind"] in ("RPD", "TPD"):
+            self.stop(f"abort: daily limit {record['limit_kind']} hit during {stage}")
+        elif status == 429 and stage in NO_429_EXPECTED:
+            self.stop(f"abort: unexpected 429 during {stage}")
+        elif status is None:
+            self.stop(f"abort: no response during {stage}")
+        elif status != 429:
+            self.stop(f"abort: unexpected status {status} during {stage}")
+
+    async def send(self, r):
+        sent_s = self.clock()
+        messages = [{"role": "user", "content": r["prompt"]}]
+        record = await llm.stream_chat(self.client, r["model"], messages, r["max_tokens"],
+                                       self.api_key, base_url=self.base_url, tag="probe")
+        self.reserved -= r["est_tokens"]
+        reported = (record["usage"] or {}).get("total_tokens")
+        if reported is None:
+            self.summary["spent"] += r["est_tokens"]  # unknown: charge the whole reservation
+        else:
+            self.summary["spent"] += reported
+            self.summary["usage_reported"] += reported
+        self.summary["requests_sent"] += 1
+        self.save(record, r, sent_s)
+        self.check(record)
+        return record
+
+    async def send_group(self, rows):
+        """Send rows at once; None if the run has stopped or they could pass the cap."""
+        if self.stopped:
+            return None
+        estimate = sum(r["est_tokens"] for r in rows)
+        if self.summary["spent"] + self.reserved + estimate > self.cap:
+            self.stop(f"cap: {estimate} more estimated tokens would pass the cap of {self.cap}")
+            return None
+        self.reserved += estimate
+        records = await asyncio.gather(*(self.send(r) for r in rows))
+        if self.stopped:
+            return None
+        return records
+
+    async def models(self, r):
+        sent_s = self.clock()
+        record = await llm.list_models(self.client, self.api_key, base_url=self.base_url)
+        self.summary["requests_sent"] += 1
+        self.save(record, r, sent_s)
+        if record["status"] != 200:
+            self.stop(f"abort: models list returned status {record['status']}")
+            return
+        self.summary["models_missing"] = [m for m in self.p["models"] if m not in record["ids"]]
+        if self.p["main_model"] in self.summary["models_missing"]:
+            self.stop(f"abort: main model {self.p['main_model']} is not listed")
+
+    async def one_at_a_time(self, rows, gap_s=0):
+        for i, r in enumerate(rows):
+            if i > 0 and gap_s:
+                await asyncio.sleep(gap_s)
+            if await self.send_group([r]) is None:
+                return
+
+    async def burst(self, stage, rows):
+        """Waves of requests until the first 429; its time counts only if it names our limit."""
+        wave = self.p["rpm_burst_wave"] if stage == "rpm_burst" else 1
+        for start in range(0, len(rows), wave):
+            records = await self.send_group(rows[start:start + wave])
+            if records is None:
+                return
+            hits = [rec for rec in records if rec["status"] == 429]
+            if hits:
+                first = min(hits, key=lambda rec: rec["received_s"])
+                if first["limit_kind"] == BURST_KIND[stage]:
+                    self.last_429 = first["received_s"]
+                else:
+                    self.note(f"{stage}: first 429 named {first['limit_kind']}, not "
+                              f"{BURST_KIND[stage]}; its recovery is not measured")
+                return
+        self.note(f"{stage}: no 429 in {len(rows)} requests")
+
+    async def recover(self, stage, rows):
+        """A tiny request every poll interval until the first 200 after the burst's 429."""
+        if self.last_429 is None:
+            self.note(f"{stage}: skipped, the burst before it gave no 429 of its kind")
+            return
+        first_429, self.last_429 = self.last_429, None
+        for r in rows:
+            await asyncio.sleep(self.p["recovery_poll_interval_s"])
+            records = await self.send_group([r])
+            if records is None:
+                return
+            if records[0]["status"] == 200:
+                # From the 429's arrival to the moment the admitted request was sent.
+                seconds = round(records[0]["sent_s"] - first_429, 3)
+                if stage == "recovery_rpm":
+                    self.summary["recovery_rpm_s"] = seconds
+                else:
+                    self.summary["recovery_tpm_s"] = seconds
+                return
+        self.note(f"{stage}: still refused after {len(rows)} polls")
+
+    async def ramp(self, rows):
+        """1, 2, 4, 8 at once; the first level that gets a 429 is the last one sent."""
+        for level in self.p["concurrency_levels"]:
+            records = await self.send_group([r for r in rows if r["group"] == f"concurrency-{level}"])
+            if records is None:
+                return
+            kinds = [rec["limit_kind"] for rec in records if rec["status"] == 429]
+            if kinds:
+                self.note(f"concurrency: 429 at {level} at once (limit named: {kinds[0]}); "
+                          f"higher levels not sent")
+                return
+
+    async def run_stage(self, stage, rows):
+        if stage == "models":
+            await self.models(rows[0])
+        elif stage == "spaced":
+            await self.one_at_a_time(rows, gap_s=self.p["spaced_interval_s"])
+        elif stage in ("header_sample", "max_tokens_pair"):
+            await self.one_at_a_time(rows)
+        elif stage in BURST_KIND:
+            await self.burst(stage, rows)
+        elif stage in ("recovery_rpm", "recovery_tpm"):
+            await self.recover(stage, rows)
+        elif stage == "concurrency":
+            await self.ramp(rows)
+
+
+async def run_probe(plan, api_key, cap, out_dir, base_url=None, p=config.PROBE, profile=None):
+    """Run the plan stage by stage, saving every record; return the summary and run_dir."""
     base_url = base_url or config.BASE_URL
     run_dir = out_dir / f"run_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
     run_dir.mkdir(parents=True, exist_ok=True)
-    log = run_dir / "requests.jsonl"
-    t0 = time.monotonic()
-    s = {"cap": cap, "spent": 0, "requests_sent": 0, "stopped_reason": "done",
-         "base_url_host": urlparse(base_url).hostname, "models_missing": [],
-         "estimated_total": sum(r["est_tokens"] for r in plan),
-         "recovery_rpm_s": None, "recovery_tpm_s": None,
-         "recovery_poll_interval_s": p["recovery_poll_interval_s"]}
-
-    def save(record, r):
-        record.update(stage=r["stage"], group=r["group"], planned_est=r["est_tokens"],
-                      received_s=round(time.monotonic() - t0, 3))
-        llm.write_trace(record, log)
-        return record
-
-    async def send(client, r):
-        messages = [{"role": "user", "content": r["prompt"]}]
-        record = await llm.stream_chat(client, r["model"], messages, r["max_tokens"],
-                                       api_key, base_url=base_url, tag="probe")
-        s["requests_sent"] += 1
-        s["spent"] += (record["usage"] or {}).get("total_tokens", r["est_tokens"])
-        return save(record, r)
-
-    async def group(client, rows):
-        """Send rows concurrently, or return None if they would pass the cap."""
-        if s["spent"] + sum(r["est_tokens"] for r in rows) > cap:
-            s["stopped_reason"] = "cap"
-            return None
-        return await asyncio.gather(*(send(client, r) for r in rows))
-
     async with llm.make_client() as client:
-        first = plan[0]
-        models = save(await llm.list_models(client, api_key, base_url=base_url), first)
-        s["requests_sent"] += 1
-        if models["status"] != 200:
-            s["stopped_reason"] = f"models_failed: status {models['status']}"
-        else:
-            s["models_missing"] = [m for m in p["models"] if m not in models["ids"]]
-            if p["main_model"] in s["models_missing"]:
-                s["stopped_reason"] = "main_model_missing"
-        last_429 = None  # received_s of the latest burst's first 429
-        for name, rows in itertools.groupby(plan[1:], key=lambda r: r["group"]):
-            if s["stopped_reason"] != "done":
-                break
-            rows = [r for r in rows if r["model"] not in s["models_missing"]]
-            if not rows:
-                continue  # a candidate model that does not exist
-            stage = rows[0]["stage"]
-            if stage.startswith("recovery"):
-                if last_429 is None:
-                    continue  # the burst never hit a limit: nothing to recover from
-                for r in rows:
-                    await asyncio.sleep(p["recovery_poll_interval_s"])
-                    done = await group(client, [r])
-                    if done is None:
-                        break
-                    if done[0]["status"] == 200:
-                        s[f"{stage}_s"] = round(done[0]["received_s"] - last_429, 3)
-                        break
-                last_429 = None
-                continue
-            if stage == "spaced" and name != "spaced-0":
-                await asyncio.sleep(p["spaced_interval_s"])
-            done = await group(client, rows)
-            if done is None:
-                break
-            if stage.endswith("burst"):
-                hits = [d["received_s"] for d in done if d["status"] == 429]
-                last_429 = min(hits) if hits else None
-    (run_dir / "run.json").write_text(json.dumps(s, indent=2) + "\n")
-    return {**s, "run_dir": str(run_dir)}
+        run = ProbeRun(client, api_key, cap, run_dir, base_url, p,
+                       profile or p["default_profile"], sum(r["est_tokens"] for r in plan))
+        try:
+            for stage in stages_of(plan):
+                if run.stopped:
+                    break
+                missing = run.summary["models_missing"]
+                rows = [r for r in plan if r["stage"] == stage and r["model"] not in missing]
+                if not rows:
+                    continue  # e.g. a candidate model that does not exist
+                await asyncio.sleep(p["pause_before_s"].get(stage, 0))
+                await run.run_stage(stage, rows)
+                run.write_summary()
+            run.stop("done")
+        finally:
+            run.stop("interrupted")  # only takes effect if the loop was cut short
+            run.write_summary()
+    return {**run.summary, "run_dir": str(run_dir)}
 
 
 def main(argv=None):
@@ -150,10 +331,13 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true", help="print the plan and estimate only")
     ap.add_argument("--confirm", action="store_true", help="allow real requests")
     ap.add_argument("--max-tokens-total", type=int, help="hard cap on tokens for this run")
+    ap.add_argument("--profile", choices=sorted(config.PROBE["profiles"]),
+                    default=config.PROBE["default_profile"])
     ap.add_argument("--out", default=str(config.PROBE_DIR))
     ap.add_argument("--base-url", default=config.BASE_URL)
     args = ap.parse_args(argv)
-    plan = plan_requests()
+    plan = plan_requests(profile=args.profile)
+    print(f"Profile: {args.profile}")
     total = print_plan(plan)
     if args.dry_run:
         return
@@ -164,7 +348,7 @@ def main(argv=None):
         print("No key in .env; paste it after GROQ_API_KEY= then rerun")
         raise SystemExit(2)
     summary = asyncio.run(run_probe(plan, api_key, args.max_tokens_total, Path(args.out),
-                                    base_url=args.base_url))
+                                    base_url=args.base_url, profile=args.profile))
     print(json.dumps(summary, indent=2))
 
 

@@ -21,10 +21,14 @@ class FakeGroq:
         self.delay_s = 0.0  # pause before each content delta
         self.stream_error = None  # when set, sent as an error event after the content
         self.done_line = b"data: [DONE]\n\n"
+        self.force_status = None  # when set, every chat request gets this error status
         self.requests = []  # bodies received by the chat endpoint
         self._window_start = time.monotonic()
         self._count = 0
         self.base_url = None
+
+    def reset_window(self):
+        self._window_start, self._count = time.monotonic(), 0
 
     def admit(self):
         """True if this request fits the current window; also returns seconds to wait."""
@@ -73,6 +77,10 @@ def _handler(fake):
             if self.path != "/openai/v1/chat/completions" or not self._authorised():
                 return
             fake.requests.append(body)
+            if fake.force_status:
+                self._json(fake.force_status, {"error": {"message": "fixture error",
+                                                         "type": "fixture"}})
+                return
             ok, wait = fake.admit()
             if not ok:
                 limit = fake.limit_per_window

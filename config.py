@@ -45,6 +45,12 @@ USER_AGENT = "the-relay/0.1 (take-home research script; fetches 3 papers once)"
 
 # Approximation used for piece sizes and spend estimates; real counts come from Groq usage.
 TOKENS_PER_WORD = 1.33
+# Spend estimates are deliberately high: the larger of words x TOKENS_PER_WORD and
+# characters / CHARS_PER_TOKEN (math-heavy text has long "words"), plus a fixed overhead
+# per request for the chat template Groq wraps around the messages. The overhead is
+# unverified until the probe: compare it with usage.prompt_tokens and update it here.
+CHARS_PER_TOKEN = 3.0
+REQUEST_OVERHEAD_TOKENS = 60
 
 # --- Retrieval settings (PLAN 2.2) ---
 # For C, piece_tokens is the cap above which a long section is split into windows
@@ -92,9 +98,17 @@ ANSWER_SYSTEM_PROMPT = (
 CITATION_ID = r"[a-z]+-[ABC]-\d+"
 
 # --- Rate-limit probe ---
-# The whole probe must stay around 25-30k tokens (PLAN 5.3 Tuesday budget).
-# Values are assistant defaults pending Tanush.
+# Values are assistant defaults pending Tanush. Two profiles (Tanush approved "lean" as
+# the default): lean answers the questions Table 1 needs; "full" adds the token-limit
+# burst, its recovery and the max_tokens 50 vs 1000 pair, and runs only with --profile full.
 PROBE = {
+    "profiles": {
+        "lean": ["models", "header_sample", "spaced", "rpm_burst", "recovery_rpm",
+                 "concurrency"],
+        "full": ["models", "header_sample", "spaced", "rpm_burst", "recovery_rpm",
+                 "tpm_burst", "recovery_tpm", "concurrency", "max_tokens_pair"],
+    },
+    "default_profile": "lean",
     "models": CANDIDATE_MODELS,
     "main_model": DRAFT_MODEL,
     "small_prompt": "Reply with the single word: ok",
@@ -102,13 +116,30 @@ PROBE = {
     "header_sample_max_tokens": 200,
     "spaced_requests": 50,
     "spaced_interval_s": 4.0,
-    "rpm_burst_requests": 40,
+    "rpm_burst_requests": 40,  # an upper bound: the burst stops at its first 429
+    "rpm_burst_wave": 5,  # sent 5 at a time, so 40 tiny requests fit well inside a minute
     "tpm_burst_requests": 4,
     "tpm_burst_prompt_tokens": 2500,
     "tpm_burst_max_tokens": 16,
     "recovery_poll_interval_s": 5.0,
-    "recovery_max_polls": 30,
-    "concurrency_levels": [1, 2, 4, 8],
+    "recovery_max_polls": 30,  # an upper bound: recovery stops at its first 200
+    "concurrency_levels": [1, 2, 4, 8],  # stops after the first level that gets a 429
     "max_tokens_pair": [50, 1000],
+    # Seconds to wait before a stage so the previous burst's per-minute window has passed.
+    "pause_before_s": {"tpm_burst": 60, "concurrency": 60},
+    # Abort if a header limit is under this fraction of DOCUMENTED_LIMITS: report, do not retry.
+    "low_limit_fraction": 0.5,
     "default_cap": 30000,
+}
+
+# What Groq's limits page is believed to say per model, used ONLY to spot a header that is
+# far lower than expected (then the probe aborts and reports). Not measurements, never in
+# Table 1. The headers report requests per day and tokens per minute (docs/RESEARCH.md).
+# gpt-oss values: docs/RESEARCH.md table. llama values: assistant memory of the limits page,
+# unverified; Tanush to confirm at console.groq.com/settings/limits.
+DOCUMENTED_LIMITS = {
+    "openai/gpt-oss-20b": {"requests_per_day": 1000, "tokens_per_minute": 8000},
+    "openai/gpt-oss-120b": {"requests_per_day": 1000, "tokens_per_minute": 8000},
+    "llama-3.1-8b-instant": {"requests_per_day": 14400, "tokens_per_minute": 6000},
+    "llama-3.3-70b-versatile": {"requests_per_day": 1000, "tokens_per_minute": 12000},
 }

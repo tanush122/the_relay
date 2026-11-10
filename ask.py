@@ -3,7 +3,10 @@
 This is the thinnest real path. The full five steps (and the refusal and check steps)
 arrive in phase 2, so nothing here judges the answer; unknown citations are only flagged.
 Real mode refuses before doing any work unless --confirm and --max-tokens-total are given,
-because every real call spends the shared daily quota.
+because every real call spends the shared daily quota. It also refuses when the estimate
+(prompt upper bound + the full ANSWER_MAX_TOKENS) is over the cap, and afterwards prints
+the tokens Groq actually reported against the cap. The cap is a reservation-based bound:
+it can only be passed if Groq counts more prompt tokens than the deliberately high estimate.
 
   uv run python ask.py "What is d_ff in Attention Is All You Need?" --dry-run
 """
@@ -51,13 +54,20 @@ def _print_now(text):
     print(text, end="", flush=True)
 
 
-async def draft(question, pieces, api_key, base_url=None, trace_path=None):
+async def draft(question, pieces, api_key, base_url=None, trace_path=None, cap=None):
     async with llm.make_client() as client:
         record = await llm.stream_chat(
             client, config.DRAFT_MODEL, build_messages(question, pieces),
             config.ANSWER_MAX_TOKENS, api_key, base_url=base_url, on_content=_print_now,
-            tag="ask", trace_path=trace_path)
+            tag="ask")
     print()
+    actual = (record["usage"] or {}).get("total_tokens")
+    record["cap"] = cap
+    if trace_path:
+        llm.write_trace(record, trace_path)
+    print(f"Actual spend: {actual if actual is not None else 'not reported'} tokens; cap {cap}")
+    if actual is not None and cap is not None and actual > cap:
+        print("WARNING: Groq counted more tokens than the cap; raise REQUEST_OVERHEAD_TOKENS")
     if record["status"] != 200 or record["exception"]:
         print(f"Request failed: status {record['status']} {record['exception'] or ''}")
     for pid, label in map_citations(record["content"], pieces):
@@ -103,7 +113,8 @@ def main(argv=None):
     if not api_key:
         print("No key: paste it into .env after GROQ_API_KEY= (never into chat)")
         raise SystemExit(2)
-    asyncio.run(draft(args.question, pieces, api_key, trace_path=config.TRACES_DIR / "ask.jsonl"))
+    asyncio.run(draft(args.question, pieces, api_key, trace_path=config.TRACES_DIR / "ask.jsonl",
+                      cap=args.max_tokens_total))
 
 
 if __name__ == "__main__":

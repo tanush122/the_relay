@@ -93,7 +93,8 @@ def test_redact():
 
 
 def test_check_spend(capsys):
-    for args in [(100, False, 1000), (100, True, None), (2000, True, 1000)]:
+    for args in [(100, False, 1000), (100, True, None), (2000, True, 1000), (10, True, 0),
+                 (10, True, -5)]:
         with pytest.raises(SystemExit) as exc:
             llm.check_spend(*args)
         assert exc.value.code == 2
@@ -148,3 +149,12 @@ def test_new_connection_flag(fake_groq):
             return first, second
     first, second = asyncio.run(run())
     assert first["new_connection"] is True and second["new_connection"] is False
+
+
+def test_estimate_is_an_upper_bound_with_overhead():
+    import config
+    assert llm.estimate_tokens("") == config.REQUEST_OVERHEAD_TOKENS
+    plain = llm.estimate_tokens("one two three four five six")
+    assert plain >= int(6 * config.TOKENS_PER_WORD) + config.REQUEST_OVERHEAD_TOKENS
+    math_word = "fracNN-1sum_i=1^Nx_iy_i" * 3  # one long "word", as parse.py makes from math
+    assert llm.estimate_tokens(math_word) > int(len(math_word) / config.CHARS_PER_TOKEN)
