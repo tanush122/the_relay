@@ -19,6 +19,7 @@ from library.pieces import cite_label
 from relay import llm
 
 NOT_RETRIEVED = "NOT AMONG RETRIEVED PIECES"
+NOT_A_PIECE_ID = "NOT A PIECE ID (citation could not be parsed)"
 
 
 def build_messages(question, pieces):
@@ -28,10 +29,22 @@ def build_messages(question, pieces):
 
 
 def map_citations(answer, pieces):
-    """[(piece_id, label)] in first-seen order; ids we did not retrieve are flagged."""
+    """[(cited id, label)] in first-seen order, repeats listed once.
+
+    A bracket may hold one id or several: [moshi-C-012, moshi-C-013]. An id we did not
+    retrieve is flagged NOT_RETRIEVED. A bracket part that looks like a citation (it has
+    -A-, -B- or -C- in it) but is not a valid id is flagged NOT_A_PIECE_ID, never dropped.
+    """
     by_id = {p["piece_id"]: p for p in pieces}
-    seen = list(dict.fromkeys(re.findall(config.CITATION_PATTERN, answer)))
-    return [(pid, cite_label(by_id[pid]) if pid in by_id else NOT_RETRIEVED) for pid in seen]
+    found = []
+    for group in re.findall(r"\[([^\[\]]+)\]", answer):
+        for part in group.split(","):
+            part = part.strip()
+            if re.fullmatch(config.CITATION_ID, part):
+                found.append((part, cite_label(by_id[part]) if part in by_id else NOT_RETRIEVED))
+            elif re.search(r"-[ABC]-", part):
+                found.append((part, NOT_A_PIECE_ID))
+    return list(dict.fromkeys(found))
 
 
 def _print_now(text):

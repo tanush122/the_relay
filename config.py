@@ -88,7 +88,8 @@ ANSWER_SYSTEM_PROMPT = (
     "for example [moshi-C-012]. If the pieces do not contain the answer, reply "
     "exactly: The papers do not say."
 )
-CITATION_PATTERN = r"\[([a-z]+-[ABC]-\d{3})\]"
+# One piece id, e.g. moshi-C-012. A bracket may hold several, separated by commas.
+CITATION_ID = r"[a-z]+-[ABC]-\d+"
 
 # --- Rate-limit probe ---
 # The whole probe must stay around 25-30k tokens (PLAN 5.3 Tuesday budget).

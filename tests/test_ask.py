@@ -43,6 +43,16 @@ def test_map_citations():
     assert len(mapped) == 2  # repeats are listed once
 
 
+def test_map_citations_groups_and_unparsed():
+    mapped = ask.map_citations("a [attention-C-001, moshi-C-002] b [moshi-C-1234] "
+                               "c [moshi-C-12x] d [see above]", PIECES)
+    assert [pid for pid, _ in mapped] == ["attention-C-001", "moshi-C-002", "moshi-C-1234",
+                                          "moshi-C-12x"]
+    assert mapped[1][1].startswith("Moshi v1, §3.3.1")
+    assert mapped[2][1] == ask.NOT_RETRIEVED  # four digits still parse
+    assert mapped[3][1] == ask.NOT_A_PIECE_ID
+
+
 def test_draft_against_fake(fake_groq, tmp_path, capsys):
     fake_groq.reply_text = "d_ff is 2048 [attention-C-001]."
     trace = tmp_path / "ask.jsonl"

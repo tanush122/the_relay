@@ -92,7 +92,7 @@ def test_math_kept(blocks):
 
 def test_pieces_per_setting(blocks):
     from library.pieces import make_pieces
-    id_pattern = re.compile(config.CITATION_PATTERN[2:-2])  # the inner group, without [ ]
+    id_pattern = re.compile(config.CITATION_ID)
     pieces = {s: make_pieces(blocks, s) for s in "ABC"}
     for s, ps in pieces.items():
         assert ps
