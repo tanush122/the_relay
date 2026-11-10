@@ -1,0 +1,19 @@
+{
+  "profile": "lean",
+  "base_url_host": "api.groq.com",
+  "cap": 6000,
+  "estimated_total": 12690,
+  "spent": 0,
+  "usage_reported": 0,
+  "reserved_unsettled": 0,
+  "requests_sent": 1,
+  "stopped_reason": "abort: main model llama-3.1-8b-instant is not listed",
+  "models_missing": [
+    "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile"
+  ],
+  "recovery_rpm_s": null,
+  "recovery_tpm_s": null,
+  "recovery_poll_interval_s": 5.0,
+  "notes": []
+}
