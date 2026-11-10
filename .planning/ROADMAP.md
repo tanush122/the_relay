@@ -24,13 +24,14 @@ Four phases from Tue 10 to Fri 13 Nov 2026, fixed by the plan of record (docs/PL
   3. The probe refuses to run without the confirmation flag and token cap, prints its estimated spend first, supports a dry run, and on a real run saves raw status, headers, timings, usage and error bodies for about 50 spaced requests plus one burst that reaches a 429.
   4. A script turns the raw probe files into a Table 1 draft with all seven rows and the columns Limit, Value found, How found, Confidence (rows not yet confirmable marked as such).
   5. One real question goes question → retrieve → one streamed Groq answer whose cited piece ids map to "paper, version, section", with TTFT, total time, usage and rate-limit headers written to a trace line.
-**Plans**: 4 plans (sequential; real probe and first real answer are human-gated after plan 04)
+**Plans**: 5 plans (sequential; plan 05 is the human-gated real run)
 
 Plans:
 - [ ] 01-01-PLAN.md — uv + Python 3.12 pinned project, .env/.env.example, config.py, gsk_ guard (install gate first)
 - [ ] 01-02-PLAN.md — fetch exact paper versions + manifest, section parsing, settings A/B/C pieces, BM25+embedding RRF retrieval with C re-rank, known-fact tests
 - [ ] 01-03-PLAN.md — async streaming Groq client with header/usage/TTFT traces (fake-server tested), ask.py thin cited path with spend gate
-- [ ] 01-04-PLAN.md — probe.py (dry run, gated real mode, cap), table1.py draft, full suite + line budget + dry-run estimate, runbook hand-off
+- [ ] 01-04-PLAN.md — probe.py (dry run, gated real mode, cap), table1.py draft, full suite + line budget + dry-run estimate, runbook
+- [ ] 01-05-PLAN.md — human-gated real run: spend approval gate, real probe under cap, Table 1 draft from real data, one real cited answer
 
 ### Phase 2: Pipeline and retrieval
 **Goal**: Every request runs the five steps and either sends a cited answer that passes the code check or honestly refuses; settings A and B are run on real Groq over Tanush's questions, graded by hand, and recorded in a results.csv that validates against the brief.
@@ -75,7 +76,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundations and probe | 0/4 | Not started | - |
+| 1. Foundations and probe | 0/5 | Not started | - |
 | 2. Pipeline and retrieval | 0/TBD | Not started | - |
 | 3. Gateway, stand-in and load | 0/TBD | Not started | - |
 | 4. Experiments and write-up | 0/TBD | Not started | - |
