@@ -13,7 +13,7 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 - [x] **ENV-02**: Groq key is read only from a git-ignored .env; .env.example ships with an empty `GROQ_API_KEY=`; key never printed, logged or committed (BRIEF ground rule: do not include your key)
 - [x] **ENV-03**: A test or pre-commit guard fails if a string starting with `gsk_` appears in any tracked file (BRIEF ground rule: key)
 - [x] **ENV-04**: Every tunable (limits, deadlines, ladder thresholds, retry policy, retrieval setting, model names) lives in one config module, so a live change is a one-line edit (PLAN 5.7)
-- [ ] **ENV-05**: Every real Groq run prints its estimated token spend first and refuses to run without an explicit confirmation flag and a per-run hard token cap (BRIEF: plan your requests; PLAN 5.3)
+- [x] **ENV-05**: Every real Groq run prints its estimated token spend first and refuses to run without an explicit confirmation flag and a per-run hard token cap (BRIEF: plan your requests; PLAN 5.3)
 
 ### Library and retrieval (LIB)
 
@@ -25,8 +25,8 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 
 ### Real service and client (REAL)
 
-- [ ] **REAL-01**: An async streaming model client with a single base-URL setting talks to Groq or the stand-in unchanged (BRIEF: real hosted model on Groq free tier; stand-in replaces it)
-- [ ] **REAL-02**: The client records per call: time to first token, total time, token usage and all rate-limit headers, and writes a per-request trace line (BRIEF: TTFT and total time; PLAN 3.9)
+- [x] **REAL-01**: An async streaming model client with a single base-URL setting talks to Groq or the stand-in unchanged (BRIEF: real hosted model on Groq free tier; stand-in replaces it)
+- [x] **REAL-02**: The client records per call: time to first token, total time, token usage and all rate-limit headers, and writes a per-request trace line (BRIEF: TTFT and total time; PLAN 3.9)
 - [ ] **REAL-03**: A probe sends a modest number of real requests (~50 spaced, then one deliberate burst) and saves raw status, headers, timings, usage and error bodies (BRIEF: what to run — first, modest number of real requests; latency spread, limits, behaviour at a limit)
 - [ ] **REAL-04**: A script drafts Table 1 from the raw probe files with every row: requests per minute, tokens per minute, requests per day, tokens per day, requests in flight at once, what it returns when a limit is hit, time until it recovers — columns Limit, Value found, How found, Confidence (BRIEF: Table 1)
 - [ ] **REAL-05**: The daily limit is confirmed by exhausting the cheapest model once, late, when no other run needs quota — or Table 1 says how it was found otherwise (BRIEF: Table 1 requests/tokens per day; PLAN 4.1)
@@ -139,14 +139,14 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | ENV-02 | Phase 1 | Complete |
 | ENV-03 | Phase 1 | Complete |
 | ENV-04 | Phase 1 | Complete |
-| ENV-05 | Phase 1 | Pending |
+| ENV-05 | Phase 1 | Complete |
 | LIB-01 | Phase 1 | Complete |
 | LIB-02 | Phase 1 | Complete |
 | LIB-03 | Phase 1 | Complete |
 | LIB-04 | Phase 1 | Complete |
 | LIB-05 | Phase 1 | Complete |
-| REAL-01 | Phase 1 | Pending |
-| REAL-02 | Phase 1 | Pending |
+| REAL-01 | Phase 1 | Complete |
+| REAL-02 | Phase 1 | Complete |
 | REAL-03 | Phase 1 | Pending |
 | REAL-04 | Phase 1 | Pending |
 | REAL-05 | Phase 4 | Pending |
