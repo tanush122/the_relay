@@ -18,7 +18,8 @@ The key goes only in the git-ignored `.env`, after `GROQ_API_KEY=` (never in cha
 uv run python -m library.fetch                      # fetch the 6 paper files once, write data/manifest.json
 uv run pytest -q -rs                                # full test suite (fake server only, no real calls)
 uv run python ask.py "What is d_ff in Attention Is All You Need?" --setting C --dry-run
-uv run python probe.py --dry-run                    # every planned request + ESTIMATED TOTAL
+uv run python probe.py --dry-run                    # lean profile (default): every request + ESTIMATED TOTAL
+uv run python probe.py --dry-run --profile full     # adds the token-limit burst, its recovery, max_tokens pair
 uv run python table1.py                             # Table 1 draft from the newest probe run
 ```
 
@@ -30,7 +31,7 @@ Run only after Tanush's yes (plan 01-05). Each one spends the shared daily quota
 
 1. The key is in `.env` after `GROQ_API_KEY=` (never in chat).
 2. Tanush reviews the `probe.py --dry-run` and `ask.py --dry-run` estimates and approves a cap.
-3. `uv run python probe.py --confirm --max-tokens-total <approved cap>`
-4. `uv run python table1.py`
+3. `uv run python probe.py --confirm --max-tokens-total <approved cap>` (lean profile; `--profile full` only if Tanush asks for it). The real key goes only to `https://api.groq.com`; the run stops at the cap or on any unexpected answer and saves what it has.
+4. `uv run python table1.py` (a run against any host other than api.groq.com is headed NOT GROQ)
 5. One real cited answer: `uv run python ask.py "<question>" --setting C --confirm --max-tokens-total <approved cap>`
 6. `git add data/probe/run_*/ data/traces/ask.jsonl`, then `uv run pytest -q tests/test_no_keys.py`, and commit only if it passes. The guard reads the staged copies (and every file under `data/probe` and `data/traces`), so run it after `git add`. Never commit with `--no-verify`: that skips the hook.
