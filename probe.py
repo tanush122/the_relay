@@ -78,7 +78,8 @@ async def run_probe(plan, api_key, cap, out_dir, base_url=None, p=config.PROBE):
     s = {"cap": cap, "spent": 0, "requests_sent": 0, "stopped_reason": "done",
          "base_url_host": urlparse(base_url).hostname, "models_missing": [],
          "estimated_total": sum(r["est_tokens"] for r in plan),
-         "recovery_rpm_s": None, "recovery_tpm_s": None}
+         "recovery_rpm_s": None, "recovery_tpm_s": None,
+         "recovery_poll_interval_s": p["recovery_poll_interval_s"]}
 
     def save(record, r):
         record.update(stage=r["stage"], group=r["group"], planned_est=r["est_tokens"],
