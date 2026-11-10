@@ -33,4 +33,4 @@ Run only after Tanush's yes (plan 01-05). Each one spends the shared daily quota
 3. `uv run python probe.py --confirm --max-tokens-total <approved cap>`
 4. `uv run python table1.py`
 5. One real cited answer: `uv run python ask.py "<question>" --setting C --confirm --max-tokens-total <approved cap>`
-6. Commit `data/probe/run_*/` and `data/traces/ask.jsonl` only after `uv run pytest -q tests/test_no_keys.py` passes.
+6. `git add data/probe/run_*/ data/traces/ask.jsonl`, then `uv run pytest -q tests/test_no_keys.py`, and commit only if it passes. The guard reads the staged copies (and every file under `data/probe` and `data/traces`), so run it after `git add`. Never commit with `--no-verify`: that skips the hook.
