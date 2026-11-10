@@ -1,0 +1,81 @@
+[
+  {
+    "paper": "attention",
+    "arxiv_id": "1706.03762",
+    "version": "v7",
+    "kind": "html",
+    "file": "1706.03762v7.html",
+    "url": "https://arxiv.org/html/1706.03762v7",
+    "final_url": "https://arxiv.org/html/1706.03762v7",
+    "bytes": 188707,
+    "sha256": "fe1288e9c6f8322156429ab44bf5ced203155f8ecc7ea9fe6cfd125872c72a3b",
+    "fetched_at": "2026-11-10T05:12:39+00:00",
+    "version_evidence": "arXiv:1706.03762v7 [cs.CL] 02 Aug 2023"
+  },
+  {
+    "paper": "attention",
+    "arxiv_id": "1706.03762",
+    "version": "v7",
+    "kind": "pdf",
+    "file": "1706.03762v7.pdf",
+    "url": "https://arxiv.org/pdf/1706.03762v7",
+    "final_url": "https://arxiv.org/pdf/1706.03762v7",
+    "bytes": 2215244,
+    "sha256": "bdfaa68d8984f0dc02beaca527b76f207d99b666d31d1da728ee0728182df697",
+    "fetched_at": "2026-11-10T05:12:43+00:00",
+    "version_evidence": "pdf url https://arxiv.org/pdf/1706.03762v7"
+  },
+  {
+    "paper": "hnet",
+    "arxiv_id": "2507.07955",
+    "version": "v2",
+    "kind": "html",
+    "file": "2507.07955v2.html",
+    "url": "https://arxiv.org/html/2507.07955v2",
+    "final_url": "https://arxiv.org/html/2507.07955v2",
+    "bytes": 564510,
+    "sha256": "e8e711353841b1a52d67cc58f61294f11bba7b1384810115b837e09b4f07f30a",
+    "fetched_at": "2026-11-10T05:13:03+00:00",
+    "version_evidence": "arXiv:2507.07955v2 [cs.LG] 15 Jul 2025"
+  },
+  {
+    "paper": "hnet",
+    "arxiv_id": "2507.07955",
+    "version": "v2",
+    "kind": "pdf",
+    "file": "2507.07955v2.pdf",
+    "url": "https://arxiv.org/pdf/2507.07955v2",
+    "final_url": "https://arxiv.org/pdf/2507.07955v2",
+    "bytes": 1375282,
+    "sha256": "04a2b32e6e82853cfc23c5db132750874a86cde99219ec6f664128f4aa83122f",
+    "fetched_at": "2026-11-10T05:13:09+00:00",
+    "version_evidence": "pdf url https://arxiv.org/pdf/2507.07955v2"
+  },
+  {
+    "paper": "moshi",
+    "arxiv_id": "2410.00037",
+    "version": "v1",
+    "kind": "html",
+    "file": "2410.00037v1.html",
+    "url": "https://arxiv.org/html/2410.00037v1",
+    "final_url": "https://arxiv.org/html/2410.00037v1",
+    "bytes": 715150,
+    "sha256": "fca02cdccca138b9d0d6c685f8c1c0e1b2f062c964a1b272cfa6274a2a20b932",
+    "fetched_at": "2026-11-10T05:12:47+00:00",
+    "version_evidence": "arXiv:2410.00037v1 [eess.AS] 17 Sep 2024",
+    "mentions_v2": false
+  },
+  {
+    "paper": "moshi",
+    "arxiv_id": "2410.00037",
+    "version": "v1",
+    "kind": "pdf",
+    "file": "2410.00037v1.pdf",
+    "url": "https://arxiv.org/pdf/2410.00037v1",
+    "final_url": "https://arxiv.org/pdf/2410.00037v1",
+    "bytes": 4694312,
+    "sha256": "a687144cc77bea86b0c60ae800ccb1d3e0816033fa5c7960388fe29a0dbfcfac",
+    "fetched_at": "2026-11-10T05:12:56+00:00",
+    "version_evidence": "pdf url https://arxiv.org/pdf/2410.00037v1"
+  }
+]
