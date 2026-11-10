@@ -1,8 +1,7 @@
 """Probe Groq's real limits and latency, saving every raw response as evidence for Table 1.
 
-Profiles (config.PROBE["profiles"]): "lean" is the default (approved by Tanush); "full"
-adds the token-limit burst, its recovery and the max_tokens pair, and runs only when
---profile full is given. Each stage stops as soon as its question is answered:
+The stages (config.PROBE["stages"]) are the lean probe Tanush approved; each stage stops
+as soon as its question is answered:
 - models: a free GET listing which candidate models exist.
 - header_sample: one request per existing candidate model, for its x-ratelimit-* headers
   and whether a reasoning model (gpt-oss) streams reasoning before the first content token.
@@ -10,10 +9,7 @@ adds the token-limit burst, its recovery and the max_tokens pair, and runs only 
 - rpm_burst: tiny requests in small waves, stopping at the first 429. Headers do not show
   the per-minute request limit; the 429 body does.
 - recovery_rpm: one tiny request every few seconds, stopping at the first 200.
-- tpm_burst / recovery_tpm (full only): a few large prompts one at a time, after waiting out
-  the request window, stopping at the first 429; then recovery as above.
 - concurrency: 1, 2, 4, 8 requests at once, stopping after the first level that gets a 429.
-- max_tokens_pair (full only): max_tokens 50 vs 1000 on the same prompt.
 
 The cap bounds actual spend. Each request's estimate (prompt upper bound + chat-template
 overhead + max_tokens) is reserved before it is sent, and no request is sent if
@@ -23,7 +19,7 @@ answer: 401/403 or any other non-200/429 status, no response, a 429 during heade
 or spaced, a daily-limit 429, or a header limit under half of config.DOCUMENTED_LIMITS.
 It reports instead of retrying. run.json is rewritten after every stage and on Ctrl-C.
 
-  uv run python probe.py --dry-run [--profile full]
+  uv run python probe.py --dry-run
 """
 
 import argparse
@@ -37,22 +33,12 @@ from urllib.parse import urlparse
 import config
 from relay import llm
 
-BURST_KIND = {"rpm_burst": "RPM", "tpm_burst": "TPM"}  # the limit each burst should trip
 NO_429_EXPECTED = {"header_sample", "spaced"}  # a 429 here means something is wrong
 
 
 def _req(stage, group, model, prompt, max_tokens):
     return {"stage": stage, "group": group, "model": model, "prompt": prompt,
             "max_tokens": max_tokens, "est_tokens": llm.estimate_tokens(prompt) + max_tokens}
-
-
-def _filler(tokens):
-    """A long, harmless prompt of roughly `tokens` tokens for the token-limit burst."""
-    sentence = "The library holds three papers about sequence models and speech."
-    words = []
-    while len(words) < tokens / config.TOKENS_PER_WORD:
-        words += sentence.split()
-    return " ".join(words)
 
 
 def stage_rows(stage, p):
@@ -68,26 +54,20 @@ def stage_rows(stage, p):
         return [_req(stage, f"spaced-{i}", main, small, tiny) for i in range(p["spaced_requests"])]
     if stage == "rpm_burst":
         return [_req(stage, stage, main, small, tiny) for _ in range(p["rpm_burst_requests"])]
-    if stage == "tpm_burst":
-        prompt = f"{_filler(p['tpm_burst_prompt_tokens'])}\n{small}"
-        return [_req(stage, stage, main, prompt, p["tpm_burst_max_tokens"])
-                for _ in range(p["tpm_burst_requests"])]
-    if stage in ("recovery_rpm", "recovery_tpm"):
+    if stage == "recovery_rpm":
         return [_req(stage, stage, main, small, tiny) for _ in range(p["recovery_max_polls"])]
     if stage == "concurrency":
         rows = []
         for level in p["concurrency_levels"]:
             rows += [_req(stage, f"concurrency-{level}", main, small, tiny) for _ in range(level)]
         return rows
-    if stage == "max_tokens_pair":
-        return [_req(stage, f"pair-{n}", main, small, n) for n in p["max_tokens_pair"]]
     raise ValueError(f"unknown probe stage: {stage}")
 
 
-def plan_requests(p=config.PROBE, profile=None):
-    """Every request the profile may send, stage by stage in the profile's order."""
+def plan_requests(p=config.PROBE):
+    """Every request the probe may send, stage by stage."""
     plan = []
-    for stage in p["profiles"][profile or p["default_profile"]]:
+    for stage in p["stages"]:
         plan += stage_rows(stage, p)
     return plan
 
@@ -114,7 +94,7 @@ def print_plan(plan, p=config.PROBE):
 class ProbeRun:
     """One real run: the token ledger, the raw log (requests.jsonl) and the summary (run.json)."""
 
-    def __init__(self, client, api_key, cap, run_dir, base_url, p, profile, estimated_total):
+    def __init__(self, client, api_key, cap, run_dir, base_url, p, estimated_total):
         self.client, self.api_key, self.cap = client, api_key, cap
         self.run_dir, self.base_url, self.p = run_dir, base_url, p
         self.log = run_dir / "requests.jsonl"
@@ -123,10 +103,10 @@ class ProbeRun:
         self.last_429 = None  # received_s of the latest burst's first 429 of the right kind
         self.replies = {}  # stage -> [200 replies, of which had visible text]
         self.summary = {
-            "profile": profile, "base_url_host": urlparse(base_url).hostname, "cap": cap,
+            "base_url_host": urlparse(base_url).hostname, "cap": cap,
             "estimated_total": estimated_total, "spent": 0, "usage_reported": 0,
             "reserved_unsettled": 0, "requests_sent": 0, "stopped_reason": "running",
-            "models_missing": [], "recovery_rpm_s": None, "recovery_tpm_s": None,
+            "models_missing": [], "recovery_rpm_s": None,
             "recovery_poll_interval_s": p["recovery_poll_interval_s"], "notes": []}
 
     def clock(self):
@@ -256,9 +236,9 @@ class ProbeRun:
         if rows[0]["stage"] == "header_sample":
             self.check_visible_text("header_sample", after=1)
 
-    async def burst(self, stage, rows):
-        """Waves of requests until the first 429; its time counts only if it names our limit."""
-        wave = self.p["rpm_burst_wave"] if stage == "rpm_burst" else 1
+    async def burst(self, rows):
+        """Waves of requests until the first 429; its time counts only if it names RPM."""
+        wave = self.p["rpm_burst_wave"]
         for start in range(0, len(rows), wave):
             records = await self.send_group(rows[start:start + wave])
             if records is None:
@@ -266,18 +246,18 @@ class ProbeRun:
             hits = [rec for rec in records if rec["status"] == 429]
             if hits:
                 first = min(hits, key=lambda rec: rec["received_s"])
-                if first["limit_kind"] == BURST_KIND[stage]:
+                if first["limit_kind"] == "RPM":
                     self.last_429 = first["received_s"]
                 else:
-                    self.note(f"{stage}: first 429 named {first['limit_kind']}, not "
-                              f"{BURST_KIND[stage]}; its recovery is not measured")
+                    self.note(f"rpm_burst: first 429 named {first['limit_kind']}, not RPM; "
+                              "its recovery is not measured")
                 return
-        self.note(f"{stage}: no 429 in {len(rows)} requests")
+        self.note(f"rpm_burst: no 429 in {len(rows)} requests")
 
-    async def recover(self, stage, rows):
+    async def recover(self, rows):
         """A tiny request every poll interval until the first 200 after the burst's 429."""
         if self.last_429 is None:
-            self.note(f"{stage}: skipped, the burst before it gave no 429 of its kind")
+            self.note("recovery_rpm: skipped, the burst gave no 429 naming RPM")
             return
         first_429, self.last_429 = self.last_429, None
         for r in rows:
@@ -287,13 +267,9 @@ class ProbeRun:
                 return
             if records[0]["status"] == 200:
                 # From the 429's arrival to the moment the admitted request was sent.
-                seconds = round(records[0]["sent_s"] - first_429, 3)
-                if stage == "recovery_rpm":
-                    self.summary["recovery_rpm_s"] = seconds
-                else:
-                    self.summary["recovery_tpm_s"] = seconds
+                self.summary["recovery_rpm_s"] = round(records[0]["sent_s"] - first_429, 3)
                 return
-        self.note(f"{stage}: still refused after {len(rows)} polls")
+        self.note(f"recovery_rpm: still refused after {len(rows)} polls")
 
     async def ramp(self, rows):
         """1, 2, 4, 8 at once; the first level that gets a 429 is the last one sent."""
@@ -312,24 +288,24 @@ class ProbeRun:
             await self.models(rows[0])
         elif stage == "spaced":
             await self.one_at_a_time(rows, gap_s=self.p["spaced_interval_s"])
-        elif stage in ("header_sample", "max_tokens_pair"):
+        elif stage == "header_sample":
             await self.one_at_a_time(rows)
-        elif stage in BURST_KIND:
-            await self.burst(stage, rows)
-        elif stage in ("recovery_rpm", "recovery_tpm"):
-            await self.recover(stage, rows)
+        elif stage == "rpm_burst":
+            await self.burst(rows)
+        elif stage == "recovery_rpm":
+            await self.recover(rows)
         elif stage == "concurrency":
             await self.ramp(rows)
 
 
-async def run_probe(plan, api_key, cap, out_dir, base_url=None, p=config.PROBE, profile=None):
+async def run_probe(plan, api_key, cap, out_dir, base_url=None, p=config.PROBE):
     """Run the plan stage by stage, saving every record; return the summary and run_dir."""
     base_url = base_url or config.BASE_URL
     run_dir = out_dir / f"run_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
     run_dir.mkdir(parents=True, exist_ok=True)
     async with llm.make_client() as client:
         run = ProbeRun(client, api_key, cap, run_dir, base_url, p,
-                       profile or p["default_profile"], sum(r["est_tokens"] for r in plan))
+                       sum(r["est_tokens"] for r in plan))
         try:
             for stage in stages_of(plan):
                 if run.stopped:
@@ -353,13 +329,10 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true", help="print the plan and estimate only")
     ap.add_argument("--confirm", action="store_true", help="allow real requests")
     ap.add_argument("--max-tokens-total", type=int, help="hard cap on tokens for this run")
-    ap.add_argument("--profile", choices=sorted(config.PROBE["profiles"]),
-                    default=config.PROBE["default_profile"])
     ap.add_argument("--out", default=str(config.PROBE_DIR))
     ap.add_argument("--base-url", default=config.BASE_URL)
     args = ap.parse_args(argv)
-    plan = plan_requests(profile=args.profile)
-    print(f"Profile: {args.profile}")
+    plan = plan_requests()
     total = print_plan(plan)
     if args.dry_run:
         return
@@ -370,7 +343,7 @@ def main(argv=None):
         print("No key in .env; paste it after GROQ_API_KEY= then rerun")
         raise SystemExit(2)
     summary = asyncio.run(run_probe(plan, api_key, args.max_tokens_total, Path(args.out),
-                                    base_url=args.base_url, profile=args.profile))
+                                    base_url=args.base_url))
     print(json.dumps(summary, indent=2))
 
 

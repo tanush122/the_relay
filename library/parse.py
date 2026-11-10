@@ -19,7 +19,7 @@ from library import fetch
 
 SECTION_CLASSES = {"ltx_section", "ltx_subsection", "ltx_subsubsection", "ltx_appendix"}
 # LaTeX font commands carry no meaning for search: d_{\text{ff}} should read d_ff, not d_textff.
-FONT_COMMANDS = re.compile(r"\\(text|mathrm|mathbf|mathit|mathsf|mathcal|operatorname|rm|bf|it)\b")
+FONT_COMMANDS = re.compile(r"\\(text|textbf|textit|mathrm|mathbf|mathit|mathsf|mathcal|mathbb|boldsymbol|bm|operatorname|rm|bf|it)\b")
 
 
 def _clean(text):

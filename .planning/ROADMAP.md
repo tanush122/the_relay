@@ -52,7 +52,10 @@ Plans:
   5. The refusal threshold is set from the question runs, with the count of wrong answers versus wrong refusals it produces recorded.
   6. `uv run relay ask "..."` answers or refuses one question end to end; the report command prints Tables 2a, 2b and 3 from results.csv, and the validator enforces the empty-field rule.
 
-**Plans**: TBD
+**Plans**: 1 so far (written by hand, no subagents)
+
+- [x] 02-01-PLAN.md — pipeline, results.csv + validator, report, evaluation harness, relay command (no Groq)
+- [ ] real evaluation runs of settings A and B on Tanush's questions (needs his questions and his yes with caps)
 
 ### Phase 3: Gateway, stand-in and load
 

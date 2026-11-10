@@ -15,22 +15,20 @@ import probe
 from tests.fake_groq import fake_groq  # noqa: F401  (pytest fixture)
 
 LEAN = ["models", "header_sample", "spaced", "rpm_burst", "recovery_rpm", "concurrency"]
-FULL_ONLY = ["tpm_burst", "recovery_tpm", "max_tokens_pair"]
 
 # Small, fast probe for the fake server: every key from config.PROBE, only these differ.
 SMALL = {**config.PROBE, "models": ["fake-model", "missing-model"], "main_model": "fake-model",
          "spaced_requests": 3, "spaced_interval_s": 0, "rpm_burst_requests": 6,
-         "rpm_burst_wave": 2, "tpm_burst_requests": 2, "recovery_poll_interval_s": 0.2,
+         "rpm_burst_wave": 2, "recovery_poll_interval_s": 0.2,
          "recovery_max_polls": 20, "concurrency_levels": [1, 2], "pause_before_s": {}}
 
 
-def run_small(fake, tmp_path, cap, profile="full", p=SMALL):
+def run_small(fake, tmp_path, cap, p=SMALL):
     """Run the small probe against the fake; return (summary, records)."""
     fake.limit_per_window, fake.window_s = 4, 1.0
     fake.reset_window()
-    summary = asyncio.run(probe.run_probe(probe.plan_requests(p, profile), "test-key-123", cap,
-                                          tmp_path, base_url=fake.base_url, p=p,
-                                          profile=profile))
+    summary = asyncio.run(probe.run_probe(probe.plan_requests(p), "test-key-123", cap,
+                                          tmp_path, base_url=fake.base_url, p=p))
     log = Path(summary["run_dir"]) / "requests.jsonl"
     return summary, [json.loads(line) for line in log.read_text().splitlines()]
 
@@ -42,12 +40,9 @@ def no_network(monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "send", refuse)
 
 
-def test_lean_is_default_and_full_adds_token_stages():
+def test_plan_is_the_lean_probe():
     lean = [r["stage"] for r in probe.plan_requests()]
-    full = [r["stage"] for r in probe.plan_requests(profile="full")]
     assert probe.stages_of(probe.plan_requests()) == LEAN
-    assert not any(stage in lean for stage in FULL_ONLY)
-    assert all(stage in full for stage in LEAN + FULL_ONLY)
     assert lean.count("spaced") == 50
     plan = probe.plan_requests()
     sizes = [sum(r["group"] == f"concurrency-{n}" for r in plan) for n in (1, 2, 4, 8)]
@@ -58,7 +53,6 @@ def test_lean_is_default_and_full_adds_token_stages():
 def test_dry_run_no_network(no_network, capsys):
     probe.main(["--dry-run"])
     out = capsys.readouterr().out.splitlines()
-    assert out[0] == "Profile: lean"
     assert out[-1].startswith("ESTIMATED TOTAL:")
     planned = [line for line in out if line.strip()[:1].isdigit()]
     assert len(planned) == len(probe.plan_requests())
@@ -97,7 +91,7 @@ def test_burst_and_ramp_stop_early(fake_groq, tmp_path):
     fake_groq.limit_per_window, fake_groq.window_s = 4, 600  # no recovery inside the test
     fake_groq.reset_window()
     p = {**SMALL, "recovery_poll_interval_s": 0.01, "recovery_max_polls": 3}
-    summary = asyncio.run(probe.run_probe(probe.plan_requests(p, "lean"), "k", 100000,
+    summary = asyncio.run(probe.run_probe(probe.plan_requests(p), "k", 100000,
                                           tmp_path, base_url=fake_groq.base_url, p=p))
     records = [json.loads(line) for line in
                (Path(summary["run_dir"]) / "requests.jsonl").read_text().splitlines()]
@@ -110,11 +104,11 @@ def test_burst_and_ramp_stop_early(fake_groq, tmp_path):
 
 
 def test_cap_bounds_actual_spend(fake_groq, tmp_path):
-    for cap in (60, 500, 2000):
+    for cap in (60, 300, 400):
         summary, records = run_small(fake_groq, tmp_path / str(cap), cap=cap)
         assert summary["stopped_reason"].startswith("cap")
         assert summary["spent"] <= cap and summary["reserved_unsettled"] == 0
-        assert summary["requests_sent"] < len(probe.plan_requests(SMALL, "full"))
+        assert summary["requests_sent"] < len(probe.plan_requests(SMALL))
 
 
 def test_abort_on_unexpected_status(fake_groq, tmp_path):
@@ -136,7 +130,7 @@ def test_abort_on_limits_far_below_documented(fake_groq, tmp_path, monkeypatch):
 
 
 def test_interrupted_run_still_writes_summary(fake_groq, tmp_path, monkeypatch):
-    async def boom(self, stage, rows):
+    async def boom(self, rows):
         raise RuntimeError("fixture interruption")
     monkeypatch.setattr(probe.ProbeRun, "burst", boom)
     with pytest.raises(RuntimeError):

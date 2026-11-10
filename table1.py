@@ -103,10 +103,13 @@ def in_flight(records):
         return row(ROWS[4])
     per_level = []
     for n, rs in sorted(levels.items()):
-        ttfts = [r["ttft_ms"] for r in rs if r["ttft_ms"]]
+        # Total time, not TTFT: at max_tokens 16 most replies end before any visible text.
+        totals = [r["total_ms"] for r in rs if r.get("total_ms")]
         statuses = ",".join(str(r["status"]) for r in rs)
-        median = f"{statistics.median(ttfts):.0f} ms" if ttfts else "n/a"
-        per_level.append(f"{n}: TTFT median {median}, statuses {statuses}")
+        median = f"{statistics.median(totals):.0f} ms" if totals else "n/a"
+        visible = sum(bool(r.get("ttft_ms")) for r in rs)
+        per_level.append(f"{n}: total median {median}, statuses {statuses}, "
+                         f"{visible} of {len(rs)} with visible text")
     # A non-200 at a higher level may be the per-minute limit, not a concurrency cap.
     return row(ROWS[4], f">= {best} (no cap observed up to {best})",
                f"concurrency ramp; {'; '.join(per_level)}", "low")
@@ -127,19 +130,14 @@ def on_limit(errors):
 
 
 def recovery(errors, summary):
-    rpm, tpm = summary.get("recovery_rpm_s"), summary.get("recovery_tpm_s")
-    if rpm is None and tpm is None:
+    """Per-minute (RPM) recovery only: the lean probe never hit the token limit."""
+    seconds = summary.get("recovery_rpm_s")
+    if seconds is None:
         return row(ROWS[6], how="no recovery observed; daily reset not measured (phase 4)")
-    shown = []
-    for kind, seconds in (("RPM", rpm), ("TPM", tpm)):
-        if seconds is None:
-            shown.append(f"{kind}: {NOT_MEASURED}")
-            continue
-        retry = next((e["headers"].get("retry-after") for e in errors
-                      if e.get("limit_kind") == kind), None)
-        shown.append(f"{kind}: {seconds} s after a 429 naming {kind} "
-                     f"(its retry-after: {retry})")
-    value = "; ".join(shown) + "; daily reset not measured (phase 4)"
+    retry = next((e["headers"].get("retry-after") for e in errors
+                  if e.get("limit_kind") == "RPM"), None)
+    value = (f"RPM: {seconds} s after a 429 naming RPM (its retry-after: {retry}); "
+             f"TPM: {NOT_MEASURED}; daily reset not measured (phase 4)")
     how = ("from the arrival of a burst's first 429 to the sending of the first re-admitted "
            f"tiny request; polled every {summary.get('recovery_poll_interval_s')} s, "
            "so the true value is up to one poll earlier")

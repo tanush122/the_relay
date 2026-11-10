@@ -19,7 +19,7 @@ def test_rows_and_columns_from_fake_run(fake_groq, tmp_path):
     by_name = {r["Limit"]: r["Value found"] for r in rows}
     assert "429" in by_name["What it returns when a limit is hit"]
     assert "1000" in by_name["Requests per day"]
-    assert "4" in by_name["Requests per minute"]  # "Limit 4" in the fake's 429 body
+    assert by_name["Requests per minute"].startswith("4 (fake-model)")  # fake's "Limit 4"
     assert by_name["Time until it recovers"].startswith("RPM: ")
     assert by_name["Time until it recovers"].split()[1].replace(".", "").isdigit()
     assert "after a 429 naming RPM" in by_name["Time until it recovers"]
@@ -71,7 +71,7 @@ def test_lean_rehearsal_end_to_end_is_labelled_not_groq(fake_groq, tmp_path, mon
                 "--out", str(tmp_path)])
     run_dir = next(tmp_path.glob("run_*"))
     summary = json.loads((run_dir / "run.json").read_text())
-    assert summary["profile"] == "lean" and summary["stopped_reason"] == "done"
+    assert summary["stopped_reason"] == "done"
     assert (run_dir / "requests.jsonl").read_text()
     assert set(fake_groq.auth_headers) == {"Bearer stand-in-no-real-key"}
     capsys.readouterr()

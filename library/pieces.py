@@ -18,7 +18,7 @@ def words_for(tokens):
     return max(1, round(tokens / config.TOKENS_PER_WORD))
 
 
-def _windows(words, size, stride):
+def window_starts(words, size, stride):
     """Start indices of sliding windows that together cover every word.
 
     Start at 0; while the current window ends before the last word, start another one
@@ -40,7 +40,7 @@ def _fixed(blocks, s):
     words = [(w, i) for i, block in enumerate(blocks) for w in block["text"].split()]
     size = words_for(s["piece_tokens"])
     stride = words_for(s["piece_tokens"] - s["overlap_tokens"])
-    for start in _windows(words, size, stride):
+    for start in window_starts(words, size, stride):
         window = words[start:start + size]
         majority_block = Counter(i for _, i in window).most_common(1)[0][0]
         yield blocks[majority_block], " ".join(w for w, _ in window)
@@ -56,7 +56,7 @@ def _by_section(blocks, s):
         if block["kind"] == "table" or len(words) <= size:
             yield block, prefix + block["text"]
             continue
-        for start in _windows(words, size, stride):
+        for start in window_starts(words, size, stride):
             yield block, prefix + " ".join(words[start:start + size])
 
 

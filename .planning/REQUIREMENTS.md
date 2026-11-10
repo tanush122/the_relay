@@ -33,13 +33,13 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 
 ### Pipeline (PIPE)
 
-- [ ] **PIPE-01**: A request runs five steps — understand, retrieve (tool call), decide, draft, check — at least four steps, one tool call, one branch or loop (BRIEF: what to build)
-- [ ] **PIPE-02**: The decide step re-queries at most once when retrieval is weak and refuses without a model call if still weak (BRIEF: branch or loop; some loop)
-- [ ] **PIPE-03**: The draft step streams an answer only from numbered pieces, citing piece ids that code maps to "paper, version, section"; output capped (~250 tokens) (BRIEF: every answer must cite)
-- [ ] **PIPE-04**: The check step verifies in code that every cited id was retrieved and every number in the answer appears in a cited piece; a failed check becomes a refusal, never a guess (BRIEF: never send a wrong or embarrassing answer)
-- [ ] **PIPE-05**: When the papers do not say, the assistant says so instead of guessing (retrieval threshold + prompt permission + check) (BRIEF: if the papers do not say)
-- [ ] **PIPE-07**: One command (`uv run relay ask "question"`) runs the full pipeline on a single question and prints the streamed answer, citations mapped to paper/section, timing and tokens (BRIEF: we will ask questions; live follow-up)
-- [ ] **PIPE-06**: One byte-identical system prompt across requests (PLAN 2.4)
+- [x] **PIPE-01**: A request runs five steps — understand, retrieve (tool call), decide, draft, check — at least four steps, one tool call, one branch or loop (BRIEF: what to build)
+- [x] **PIPE-02**: The decide step re-queries at most once when retrieval is weak and refuses without a model call if still weak (BRIEF: branch or loop; some loop)
+- [x] **PIPE-03**: The draft step streams an answer only from numbered pieces, citing piece ids that code maps to "paper, version, section"; output capped (~250 tokens) (BRIEF: every answer must cite)
+- [x] **PIPE-04**: The check step verifies in code that every cited id was retrieved and every number in the answer appears in a cited piece; a failed check becomes a refusal, never a guess (BRIEF: never send a wrong or embarrassing answer)
+- [x] **PIPE-05**: When the papers do not say, the assistant says so instead of guessing (retrieval threshold + prompt permission + check) (BRIEF: if the papers do not say)
+- [x] **PIPE-07**: One command (`uv run relay ask "question"`) runs the full pipeline on a single question and prints the streamed answer, citations mapped to paper/section, timing and tokens (BRIEF: we will ask questions; live follow-up)
+- [x] **PIPE-06**: One byte-identical system prompt across requests (PLAN 2.4)
 
 ### Gateway (GW)
 
@@ -79,15 +79,15 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 
 ### Results data and reporting (DATA)
 
-- [ ] **DATA-01**: results.csv has exactly the twelve brief columns: request_id, scenario, source (real/stand-in), start_time, first_token_ms, total_ms, status (ok/rate_limited/timeout/error), retries, tokens_in, tokens_out, retrieval_setting, answer_grade (BRIEF: raw file)
+- [x] **DATA-01**: results.csv has exactly the twelve brief columns: request_id, scenario, source (real/stand-in), start_time, first_token_ms, total_ms, status (ok/rate_limited/timeout/error), retries, tokens_in, tokens_out, retrieval_setting, answer_grade (BRIEF: raw file)
 - [ ] **DATA-02**: Status mapping rule applied and stated: admission refusal or unabsorbed 429 = rate_limited; give-up or passed deadline = timeout; else error; honest "papers do not say" = ok + refused_correctly (PLAN 4.3, pending sign-off)
-- [ ] **DATA-03**: start_time is arrival time, so peak queue length is rebuildable from start_time + total_ms (PLAN 4.3, pending sign-off)
+- [x] **DATA-03**: start_time is arrival time, so peak queue length is rebuildable from start_time + total_ms (PLAN 4.3, pending sign-off)
 - [ ] **DATA-04**: Cost per 1,000 answers is computed at Groq's published list price for the model used, with the price stated (PLAN 4.3, pending sign-off)
 - [ ] **DATA-05**: Richer per-step spans go to traces.jsonl (arrival, queue wait, step starts/ends, attempts, first and last token) (PLAN 3.9)
 - [ ] **DATA-06**: One report command prints Tables 1, 2a, 2b and 3 from results.csv (and probe files); write-up tables are pasted from it; times in ms, percentages one decimal, "not measured" where not measured (BRIEF: tables must match the raw file)
-- [ ] **DATA-07**: Table 2a has columns Scenario, Real or stand-in, Requests sent, Duration (s), Offered rate (per min), First token p50/p95/p99 (ms), Total time p50/p95/p99 (ms) (BRIEF: Table 2a)
-- [ ] **DATA-08**: Table 2b has columns Scenario, Succeeded %, Rate-limited %, Timed out or given up %, Retries per request, Peak queue length, Tokens per answer, Cost per 1,000 answers (BRIEF: Table 2b)
-- [ ] **DATA-10**: Empty-field rule: a results.csv field that does not apply is left empty, never guessed (ungraded load rows have empty answer_grade; replies with no model call have empty first_token_ms but a real total_ms; probe rows use their own scenario names); the validator accepts empty only where the rule allows, and the rule is stated in the write-up
+- [x] **DATA-07**: Table 2a has columns Scenario, Real or stand-in, Requests sent, Duration (s), Offered rate (per min), First token p50/p95/p99 (ms), Total time p50/p95/p99 (ms) (BRIEF: Table 2a)
+- [x] **DATA-08**: Table 2b has columns Scenario, Succeeded %, Rate-limited %, Timed out or given up %, Retries per request, Peak queue length, Tokens per answer, Cost per 1,000 answers (BRIEF: Table 2b)
+- [x] **DATA-10**: Empty-field rule: a results.csv field that does not apply is left empty, never guessed (ungraded load rows have empty answer_grade; replies with no model call have empty first_token_ms but a real total_ms; probe rows use their own scenario names); the validator accepts empty only where the rule allows, and the rule is stated in the write-up
 - [ ] **DATA-09**: A validator checks results.csv against the brief's columns and allowed values and that every write-up figure recomputes (BRIEF: reviewers recompute)
 
 ### Write-up (DOC)
@@ -150,13 +150,13 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | REAL-03 | Phase 1 | Complete (run_20261110T133218Z) |
 | REAL-04 | Phase 1 | Complete |
 | REAL-05 | Phase 4 | Pending |
-| PIPE-01 | Phase 2 | Pending |
-| PIPE-02 | Phase 2 | Pending |
-| PIPE-03 | Phase 2 | Pending |
-| PIPE-04 | Phase 2 | Pending |
-| PIPE-05 | Phase 2 | Pending |
-| PIPE-07 | Phase 2 | Pending |
-| PIPE-06 | Phase 2 | Pending |
+| PIPE-01 | Phase 2 | Built (02-01, fake server); not yet on real runs |
+| PIPE-02 | Phase 2 | Built (02-01, fake server); not yet on real runs |
+| PIPE-03 | Phase 2 | Built (02-01, fake server); not yet on real runs |
+| PIPE-04 | Phase 2 | Built (02-01, fake server); not yet on real runs |
+| PIPE-05 | Phase 2 | Built (02-01, fake server); not yet on real runs |
+| PIPE-07 | Phase 2 | Built as `uv run python -m relay ask` (no packaging backend) |
+| PIPE-06 | Phase 2 | Built (02-01, fake server); not yet on real runs |
 | GW-01 | Phase 3 | Pending |
 | GW-02 | Phase 3 | Pending |
 | GW-03 | Phase 3 | Pending |
@@ -181,16 +181,16 @@ Sources: docs/BRIEF.md (authority), docs/PLAN.md (plan of record, section number
 | EVAL-04 | Phase 4 | Pending |
 | EVAL-05 | Phase 2 | Pending |
 | EVAL-07 | Phase 4 | Pending |
-| DATA-01 | Phase 2 | Pending |
+| DATA-01 | Phase 2 | Built (02-01, fake server); not yet on real runs |
 | DATA-02 | Phase 2 | Pending |
-| DATA-03 | Phase 2 | Pending |
+| DATA-03 | Phase 2 | Built (02-01, fake server); not yet on real runs |
 | DATA-04 | Phase 4 | Pending |
 | DATA-05 | Phase 3 | Pending |
 | DATA-06 | Phase 2 | Pending |
-| DATA-07 | Phase 2 | Pending |
-| DATA-08 | Phase 2 | Pending |
-| DATA-10 | Phase 2 | Pending |
-| DATA-09 | Phase 2 | Pending |
+| DATA-07 | Phase 2 | Built (02-01, fake server); not yet on real runs |
+| DATA-08 | Phase 2 | Built (02-01, fake server); not yet on real runs |
+| DATA-10 | Phase 2 | Built (02-01, fake server); not yet on real runs |
+| DATA-09 | Phase 2 | Validator built; write-up recompute check is phase 4 |
 | DOC-01 | Phase 4 | Pending |
 | DOC-02 | Phase 4 | Pending |
 | DOC-03 | Phase 4 | Pending |

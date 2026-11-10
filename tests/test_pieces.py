@@ -1,7 +1,7 @@
 """Pieces and fetch checks on hand-made fixtures (not paper text): no data or models needed."""
 
 import config
-from library.pieces import _windows, make_pieces, words_for
+from library.pieces import window_starts, make_pieces, words_for
 
 
 def block(number, n_words):
@@ -10,9 +10,9 @@ def block(number, n_words):
             "text": " ".join(f"w{number}_{i}" for i in range(n_words))}
 
 
-def test_windows_cover_every_word_without_spare_tail():
+def testwindow_starts_cover_every_word_without_spare_tail():
     for n in (0, 1, 5, 10, 11, 25, 100):
-        starts = _windows(list(range(n)), 10, 7)
+        starts = window_starts(list(range(n)), 10, 7)
         covered = {i for s in starts for i in range(s, min(s + 10, n))}
         assert covered == set(range(n))
         assert starts[0] == 0 and (len(starts) == 1 or starts[-2] + 10 < n)

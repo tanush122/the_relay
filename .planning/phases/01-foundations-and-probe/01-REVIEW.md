@@ -31,7 +31,7 @@ findings:
   info: 9
   total: 22
 status: issues_found
-fix_status: 18 fixed, 4 deferred to phase 2 (ME-01, ME-08, LO-07, LO-08)
+fix_status: 22 fixed (18 in phase 1; ME-01, ME-08, LO-07, LO-08 in phase 2)
 ---
 
 # Phase 1: Code Review Report
@@ -167,6 +167,8 @@ Also add the host and run dir to the "How found" column.
 
 **Status:** deferred to phase 2. Reason: fixing it (sub-window embedding means or capped C windows) changes retrieval for all three settings, and the A/B/C comparison and its questions are built in phase 2. It belongs with that work and must be documented as a confound there. No Groq tokens depend on it in phase 1.
 
+**Phase 2 (10 Nov):** fixed. Pieces are cut into 150-word windows (30 overlap); the embedding ranker and the C re-ranker score each piece by its best window; `embed_max_seq_length` is logged in timings. Side effect: B's known-fact miss moved from H-Net's ratio loss to Moshi's 12.5 Hz (see tests/test_retrieval.py and DECISIONS.md).
+
 ### ME-02: A/B pieces take the section of their first word, so citations straddling a boundary are wrong
 
 **File:** `library/pieces.py:27-32`
@@ -245,6 +247,8 @@ Separately, report any bracket that looked like a citation but did not parse.
 
 **Status:** deferred to phase 2. Reason: the default lean profile no longer runs the max_tokens pair or the TPM stages; they run only with `--profile full`. A 60 s pause now precedes the concurrency ramp and tpm_burst, which removes most leftover throttling. Reading the pair (x-ratelimit-reset-tokens waits, remaining-tokens before and after) is only needed if Tanush asks for the full profile, so it moves to phase 2 with the gateway work that would use it.
 
+**Phase 2 (10 Nov):** fixed by deletion. The full profile (tpm_burst, recovery_tpm, max_tokens_pair) was never run and nothing read the pair, so it was removed; the lean probe keeps its 60 s pause before the concurrency ramp.
+
 ### LO-01: Committed probe and trace files will carry Cloudflare cookies and the Groq org id
 
 **File:** `relay/llm.py:116,118`, README step 6
@@ -316,6 +320,8 @@ These are not the key, but they are account identifiers and session tokens in a 
 
 **Status:** deferred to phase 2. Reason: changing math cleaning changes every piece's text and therefore BM25 behaviour, which should be judged together with the phase-2 evaluation questions rather than changed blind now.
 
+**Phase 2 (10 Nov):** fixed. textbf, textit, mathbb, boldsymbol and bm added to FONT_COMMANDS.
+
 ### LO-08: Test reliability gaps
 
 **File:** `tests/test_retrieval.py:16,59-68`, `tests/test_table1.py:18`
@@ -326,6 +332,8 @@ These are not the key, but they are account identifiers and session tokens in a 
 **Fix:** Move the two tests to an unmarked module, and assert `by_name[...].startswith("4 (fake-model)")`.
 
 **Status:** deferred to phase 2. Reason: test-only tidying with no effect on any real run or number; it fits the phase-2 test pass (test_detect_papers/test_no_groq_dependency move; exact Requests-per-minute assertion).
+
+**Phase 2 (10 Nov):** fixed. Both tests moved to tests/test_pipeline.py (no data needed); the assertion is now `startswith("4 (fake-model)")`.
 
 ### LO-09: Code an intern would struggle to explain live
 

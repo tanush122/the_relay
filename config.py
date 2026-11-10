@@ -15,6 +15,10 @@ RAW_DIR = DATA_DIR / "raw"  # downloaded papers, git-ignored
 MANIFEST_PATH = DATA_DIR / "manifest.json"  # committed evidence of what was fetched
 TRACES_DIR = DATA_DIR / "traces"  # one JSON line per model request
 PROBE_DIR = DATA_DIR / "probe"  # raw probe responses
+RESULTS_PATH = DATA_DIR / "results.csv"  # the brief's raw file: one row per request
+TRACE_PATH = TRACES_DIR / "traces.jsonl"  # richer per-request detail (steps, pieces, usage)
+QUESTIONS_PATH = DATA_DIR / "questions.csv"  # Tanush's questions and answer key
+GRADING_DIR = DATA_DIR / "grading"  # one sheet per evaluation run, graded by hand
 ENV_PATH = ROOT / ".env"  # holds GROQ_API_KEY; git-ignored, never printed
 MODEL_CACHE_DIR = ROOT / ".cache" / "huggingface"
 # Keep Hugging Face model downloads inside the project, not in a global ~/.cache.
@@ -67,6 +71,10 @@ RETRIEVAL_SETTING = "C"  # default for ask.py; Tanush's call, swappable live
 RRF_K = 60  # reciprocal rank fusion constant for merging BM25 and embedding ranks
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+# The embedding model reads at most 256 word-pieces, the re-ranker 512 (question + text).
+# Pieces are scored by their best window of this many words, so long B/C pieces are read whole.
+EMBED_WINDOW_WORDS = 150
+EMBED_WINDOW_OVERLAP_WORDS = 30
 
 # --- Model service ---
 # The one switch that points the client at Groq or, in phase 3, the stand-in.
@@ -87,11 +95,37 @@ MODEL_PARAMS = {
     "openai/gpt-oss-120b": {"reasoning_effort": "low"},
 }
 
+# --- Pipeline: understand, retrieve, decide, draft, check (relay/pipeline.py) ---
+# Decide: below this retrieval strength (best cosine, 0..1) the question is re-queried once,
+# then refused with no model call. PROVISIONAL: set from Tanush's question runs (EVAL-05).
+# Checked 10 Nov on test probes only: the three known facts scored 0.47-0.76, off-topic
+# questions (capital of France, football, sourdough) 0.12-0.20, and an in-domain question
+# the papers may not answer (H-Net training GPU) 0.44-0.46, which only the model and the
+# check step can catch. 0.30 sits between off-topic and in-domain.
+MIN_STRENGTH = 0.30
+MAX_REQUERIES = 1  # the loop cap: at most one re-query per question
+MAX_QUESTION_CHARS = 1000  # understand: longer questions are refused before any work
+REFUSAL_TEXT = "The papers do not say."  # the model's own refusal, from the prompt below
+CHECK_FAILED_TEXT = ("I could not check an answer against the papers, so I will not guess. "
+                     "The papers may not say this.")
+# Draft: gpt-oss reasons before its visible text (probe, 10 Nov: ~6 reasoning tokens on a
+# tiny prompt, 37 on the first real answer; at max_tokens 16, 33 of 50 replies ended before
+# any visible text). max_tokens counts reasoning too, so headroom is added on top.
+ANSWER_MAX_TOKENS = 250  # visible answer budget
+REASONING_HEADROOM_TOKENS = 150
+# Per-request ceiling (estimated prompt + max_tokens): the lowest pieces are dropped to fit.
+# 6,000 keeps one request well inside the 8,000 tokens a minute and leaves every setting
+# whole (B's 4 x 600-token pieces estimate ~4,500); at 4,000 it silently cut B to 3 pieces.
+REQUEST_TOKEN_CEILING = 6000
+
+# Cost per 1,000 answers (Table 2b) at Groq's published list price, in dollars per million
+# tokens, e.g. {"in": 0.0, "out": 0.0}. None until read from Groq's pricing page (phase 4).
+PRICE_PER_MILLION_TOKENS = None
+
 # --- Answer drafting ---
-ANSWER_MAX_TOKENS = 250
 ANSWER_SYSTEM_PROMPT = (
     "Answer the question using only the numbered pieces of the papers given below. "
-    "After each claim, cite the id of the piece it comes from in square brackets, "
+    "End every sentence with the id of the piece it comes from in square brackets, "
     "for example [moshi-C-012]. If the pieces do not contain the answer, reply "
     "exactly: The papers do not say."
 )
@@ -99,17 +133,10 @@ ANSWER_SYSTEM_PROMPT = (
 CITATION_ID = r"[a-z]+-[ABC]-\d+"
 
 # --- Rate-limit probe ---
-# Values are assistant defaults pending Tanush. Two profiles (Tanush approved "lean" as
-# the default): lean answers the questions Table 1 needs; "full" adds the token-limit
-# burst, its recovery and the max_tokens 50 vs 1000 pair, and runs only with --profile full.
+# The lean probe Tanush approved and ran on 10 Nov (run_20261110T133218Z). The token-limit
+# burst and the max_tokens pair ("full" profile) were never run and were removed in phase 2.
 PROBE = {
-    "profiles": {
-        "lean": ["models", "header_sample", "spaced", "rpm_burst", "recovery_rpm",
-                 "concurrency"],
-        "full": ["models", "header_sample", "spaced", "rpm_burst", "recovery_rpm",
-                 "tpm_burst", "recovery_tpm", "concurrency", "max_tokens_pair"],
-    },
-    "default_profile": "lean",
+    "stages": ["models", "header_sample", "spaced", "rpm_burst", "recovery_rpm", "concurrency"],
     "models": CANDIDATE_MODELS,
     "main_model": DRAFT_MODEL,
     "small_prompt": "Reply with the single word: ok",
@@ -119,15 +146,11 @@ PROBE = {
     "spaced_interval_s": 4.0,
     "rpm_burst_requests": 40,  # an upper bound: the burst stops at its first 429
     "rpm_burst_wave": 5,  # sent 5 at a time, so 40 tiny requests fit well inside a minute
-    "tpm_burst_requests": 4,
-    "tpm_burst_prompt_tokens": 2500,
-    "tpm_burst_max_tokens": 16,
     "recovery_poll_interval_s": 5.0,
     "recovery_max_polls": 30,  # an upper bound: recovery stops at its first 200
     "concurrency_levels": [1, 2, 4, 8],  # stops after the first level that gets a 429
-    "max_tokens_pair": [50, 1000],
     # Seconds to wait before a stage so the previous burst's per-minute window has passed.
-    "pause_before_s": {"tpm_burst": 60, "concurrency": 60},
+    "pause_before_s": {"concurrency": 60},
     # Abort if a header limit is under this fraction of DOCUMENTED_LIMITS: report, do not retry.
     "low_limit_fraction": 0.5,
     "default_cap": 30000,
