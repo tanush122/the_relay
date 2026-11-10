@@ -34,13 +34,15 @@ def build_messages(question, pieces):
 def map_citations(answer, pieces):
     """[(cited id, label)] in first-seen order, repeats listed once.
 
-    A bracket may hold one id or several: [moshi-C-012, moshi-C-013]. An id we did not
+    A bracket may hold one id or several: [moshi-C-012, moshi-C-013]. gpt-oss sometimes
+    uses its own lenticular brackets instead, 【moshi-C-012】 (seen in the first real
+    answer, 10 Nov), so both kinds count. An id we did not
     retrieve is flagged NOT_RETRIEVED. A bracket part that looks like a citation (it has
     -A-, -B- or -C- in it) but is not a valid id is flagged NOT_A_PIECE_ID, never dropped.
     """
     by_id = {p["piece_id"]: p for p in pieces}
     found = []
-    for group in re.findall(r"\[([^\[\]]+)\]", answer):
+    for group in re.findall(r"[\[【]([^\[\]【】]+)[\]】]", answer):
         for part in group.split(","):
             part = part.strip()
             if re.fullmatch(config.CITATION_ID, part):
@@ -70,8 +72,11 @@ async def draft(question, pieces, api_key, base_url=None, trace_path=None, cap=N
         print("WARNING: Groq counted more tokens than the cap; raise REQUEST_OVERHEAD_TOKENS")
     if record["status"] != 200 or record["exception"]:
         print(f"Request failed: status {record['status']} {record['exception'] or ''}")
-    for pid, label in map_citations(record["content"], pieces):
+    cited = map_citations(record["content"], pieces)
+    for pid, label in cited:
         print(f"[{pid}] -> {label}")
+    if record["content"] and not cited:
+        print("NO CITATION FOUND in the answer")
     headers, usage = record["headers"], record["usage"] or {}
     print(f"ttft_ms={record['ttft_ms']} total_ms={record['total_ms']} "
           f"total_tokens={usage.get('total_tokens')} "

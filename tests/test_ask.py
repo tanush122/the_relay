@@ -86,3 +86,10 @@ def test_dry_run(monkeypatch, capsys):
               "--setting", "A", "--dry-run"])
     out = capsys.readouterr().out
     assert "Estimated spend:" in out and "moshi-A-" in out
+
+
+def test_map_citations_lenticular_brackets():
+    # gpt-oss wrote this form in the first real answer (data/traces/ask.jsonl, 10 Nov).
+    mapped = ask.map_citations("12.5 Hz【attention-C-001】 and 【moshi-C-999】", PIECES)
+    assert [pid for pid, _ in mapped] == ["attention-C-001", "moshi-C-999"]
+    assert mapped[1][1] == ask.NOT_RETRIEVED

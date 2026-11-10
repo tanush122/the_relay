@@ -1,0 +1,16 @@
+{
+  "profile": "lean",
+  "base_url_host": "api.groq.com",
+  "cap": 10000,
+  "estimated_total": 12420,
+  "spent": 9236,
+  "usage_reported": 9150,
+  "reserved_unsettled": 0,
+  "requests_sent": 100,
+  "stopped_reason": "done",
+  "models_missing": [],
+  "recovery_rpm_s": 6.187,
+  "recovery_tpm_s": null,
+  "recovery_poll_interval_s": 5.0,
+  "notes": []
+}
