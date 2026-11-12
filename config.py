@@ -68,6 +68,12 @@ SETTINGS = {
           "candidates": 20, "pieces": 4, "rerank": True},
 }
 RETRIEVAL_SETTING = "C"  # default for ask.py; Tanush's call, swappable live
+# Diversity (maximal marginal relevance, library/search.py diverse): 1.0 = off. Measured
+# offline on Tanush's 18 questions (key-answer figures found in the retrieved pieces, of
+# 291, A / B / C): off 194 / 223 / 201; 0.7 199 / 224 / 201; 0.5 204 / 218 / 217 (Q1's base
+# dimensions: 5 of 9 found -> 9 of 9 under C).
+MMR_LAMBDA = 0.5
+MMR_POOL = 3  # rank MMR_POOL x pieces candidates to choose from
 RRF_K = 60  # reciprocal rank fusion constant for merging BM25 and embedding ranks
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"

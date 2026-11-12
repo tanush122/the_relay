@@ -191,3 +191,13 @@ def test_requery_is_rewritten_from_what_the_first_search_found(fake_groq, stub_r
     # Retried once, with the section titles of the first search's best pieces added.
     assert calls[1][0] == ("How wide is the inner layer? Position-wise Feed-Forward Networks "
                            "Architecture")
+
+
+def test_diversity_prefers_a_different_piece_over_a_near_copy(monkeypatch):
+    import numpy as np
+    monkeypatch.setattr(config, "MMR_LAMBDA", 0.5)
+    # Three pieces: 0 and 1 mean the same thing, 2 is different; relevance 0 > 1 > 2.
+    index = {"emb": np.array([[1.0, 0.0], [0.99, 0.14], [0.0, 1.0]]), "owner": np.array([0, 1, 2])}
+    assert search.diverse(index, [0, 1, 2], {0: 1.0, 1: 0.9, 2: 0.6}, 2) == [0, 2]
+    monkeypatch.setattr(config, "MMR_LAMBDA", 1.0)
+    assert search.diverse(index, [0, 1, 2], {0: 1.0, 1: 0.9, 2: 0.6}, 2) == [0, 1]

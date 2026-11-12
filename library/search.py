@@ -133,6 +133,33 @@ def _rerank(index, question, candidates):
     return sorted(candidates, key=lambda i: best[i], reverse=True), best
 
 
+def diverse(index, ranked, score, k):
+    """Pick k pieces that are relevant but unlike each other (maximal marginal relevance).
+
+    The most similar pieces to a question are often near-copies about one of its parts;
+    a multi-part question then gets no evidence for its other parts (12 Nov: Q1's four
+    pieces were all about scaling, none held the base dimensions). Each pick maximises
+    MMR_LAMBDA x relevance - (1 - MMR_LAMBDA) x its closest meaning to a piece already
+    chosen. MMR_LAMBDA = 1 is plain ranking.
+    """
+    if config.MMR_LAMBDA >= 1 or len(ranked) <= k:
+        return ranked[:k]
+    rel = np.array([score[i] for i in ranked], dtype=float)
+    rel = (rel - rel.min()) / (rel.max() - rel.min() or 1.0)
+    vectors = []
+    for i in ranked:
+        v = index["emb"][index["owner"] == i].mean(axis=0)
+        vectors.append(v / np.linalg.norm(v))
+    sim = np.array(vectors) @ np.array(vectors).T
+    chosen = [0]
+    while len(chosen) < k:
+        rest = [j for j in range(len(ranked)) if j not in chosen]
+        best = max(rest, key=lambda j: config.MMR_LAMBDA * rel[j]
+                   - (1 - config.MMR_LAMBDA) * max(sim[j][c] for c in chosen))
+        chosen.append(best)
+    return [ranked[j] for j in chosen]
+
+
 def retrieve(index, question, papers=None):
     """Return ([(piece, score), ...] best first, strength).
 
@@ -152,10 +179,13 @@ def retrieve(index, question, papers=None):
     embed_ranks = _ranks(cosine, pool)
     score = {i: 1 / (config.RRF_K + bm25_ranks[i]) + 1 / (config.RRF_K + embed_ranks[i])
              for i in pool}
-    best = sorted(pool, key=lambda i: score[i], reverse=True)[:setting["candidates"]]
+    wanted = setting["pieces"]
+    # With diversity on, a wider pool is ranked so there is something to choose from.
+    width = max(setting["candidates"], config.MMR_POOL * wanted if config.MMR_LAMBDA < 1 else 0)
+    best = sorted(pool, key=lambda i: score[i], reverse=True)[:width]
     if setting["rerank"]:
         best, score = _rerank(index, question, best)
-    best = best[:setting["pieces"]]
+    best = diverse(index, best, score, wanted)
     index["timings"]["last_retrieve_ms"] = round((time.perf_counter() - start) * 1000, 2)
     strength = max((float(cosine[i]) for i in best), default=0.0)
     return [(pieces[i], float(score[i])) for i in best], strength
