@@ -74,9 +74,16 @@ def test_map_citations_all_forms():
     ("d_ff is 2048 [attention-C-009].", "cites what was not retrieved: attention-C-009"),
     ("d_ff is 4096 [attention-C-001].", "numbers not in the cited pieces: 4096"),
     ("Mimi runs at 12.5 Hz [attention-C-001].", "numbers not in the cited pieces: 12.5"),
+    ("Only 1.25 of frames [moshi-C-002].", "numbers not in the cited pieces: 1.25"),
 ])
 def test_check(sentence, reason):
     assert pipeline.check(sentence, PIECES) == reason
+
+
+def test_fraction_and_percentage_are_the_same_number():
+    # The paper writes 0.766; an answer may say 76.6% (Moshi Table 16, Tanush's Q15).
+    assert pipeline.same_value("76.6", {"0.766"}) and pipeline.same_value("0.766", {"76.6"})
+    assert not pipeline.same_value("76.7", {"0.766"})
 
 
 def test_answered_and_streamed_by_sentence(fake_groq, stub_retrieval):

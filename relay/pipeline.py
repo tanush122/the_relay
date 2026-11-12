@@ -131,6 +131,19 @@ def numbers_in(text):
     return {n.replace(",", "") for n in NUMBER.findall(text)}
 
 
+def same_value(number, evidence):
+    """True if `number` is in the evidence as written, or as its fraction or percentage:
+    papers often give 0.766 where an answer says 76.6% (Moshi Table 16)."""
+    if number in evidence:
+        return True
+    try:
+        value = float(number)
+    except ValueError:
+        return False
+    return any(abs(float(e) - value / 100) < 1e-9 or abs(float(e) - value * 100) < 1e-9
+               for e in evidence if e.replace(".", "", 1).isdigit())
+
+
 def check(sentence, pieces):
     """"" if the sentence may be shown, else why not."""
     cited = map_citations(sentence, pieces)
@@ -142,7 +155,8 @@ def check(sentence, pieces):
     by_id = {p["piece_id"]: p for p in pieces}
     evidence = " ".join(by_id[pid]["text"] + " " + cite_label(by_id[pid]) for pid, _ in cited)
     claim = LIST_MARKER.sub("", CITATION_GROUP.sub(" ", sentence))
-    missing = numbers_in(claim) - numbers_in(evidence)
+    found = numbers_in(evidence)
+    missing = {n for n in numbers_in(claim) if not same_value(n, found)}
     if missing:
         return f"numbers not in the cited pieces: {', '.join(sorted(missing))}"
     return ""
