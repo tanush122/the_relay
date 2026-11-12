@@ -1,0 +1,4 @@
+request_id,scenario,source,start_time,first_token_ms,total_ms,status,retries,tokens_in,tokens_out,retrieval_setting,answer_grade
+587d7b8142764087bcddfc889610a125,eval-C,real,2026-11-12T12:00:22.737+00:00,1532.89,1532.91,ok,0,1690,66,C,
+43d1b0029c3f43f48bf4902d34a18ef4,eval-C,real,2026-11-12T12:00:24.655+00:00,1503.28,1595.37,ok,0,1601,206,C,
+c86096b6f277491cb29131da54d6b31a,eval-C,real,2026-11-12T12:00:26.643+00:00,1084.92,1084.92,ok,0,2093,233,C,

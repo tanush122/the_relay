@@ -30,7 +30,9 @@ NOT_RETRIEVED = "NOT AMONG RETRIEVED PIECES"
 NOT_A_PIECE_ID = "NOT A PIECE ID (citation could not be parsed)"
 # A citation group: [id], [id, id], or gpt-oss's own 【id】 (seen in the first real answer).
 CITATION_GROUP = re.compile(r"[\[【]([^\[\]【】]+)[\]】]")
-NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+# A comma is a thousands separator only before exactly three digits (2,048), so a list
+# like "(4,5,6,8)" reads as four numbers, not 4568 (bug seen on the first real run, 12 Nov).
+NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?![\d,])(?:\.\d+)?|\d+(?:\.\d+)*")
 LIST_MARKER = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+", re.MULTILINE)  # "1. " is not a claim
 # A sentence ends at . ! ? or a line break, once the next text is not a citation for it.
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[^\s\[【])|\n+(?=[^\s\[【])")

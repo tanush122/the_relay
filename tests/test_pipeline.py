@@ -80,6 +80,13 @@ def test_check(sentence, reason):
     assert pipeline.check(sentence, PIECES) == reason
 
 
+def test_numbers_lists_and_thousands():
+    # First real run (12 Nov): Moshi writes striding factors as "(4,5,6,8)".
+    assert pipeline.numbers_in("striding factors (4,5,6,8) and 2,048 tokens, 3.3.1") == \
+        {"4", "5", "6", "8", "2048", "3.3.1"}
+    assert pipeline.numbers_in("(3,3)-DC and 100,000 steps") == {"3", "100000"}
+
+
 def test_fraction_and_percentage_are_the_same_number():
     # The paper writes 0.766; an answer may say 76.6% (Moshi Table 16, Tanush's Q15).
     assert pipeline.same_value("76.6", {"0.766"}) and pipeline.same_value("0.766", {"76.6"})
