@@ -85,6 +85,13 @@ def test_numbers_lists_and_thousands():
     assert pipeline.numbers_in("striding factors (4,5,6,8) and 2,048 tokens, 3.3.1") == \
         {"4", "5", "6", "8", "2048", "3.3.1"}
     assert pipeline.numbers_in("(3,3)-DC and 100,000 steps") == {"3", "100000"}
+    # Real gpt-oss output, 12 Nov: a narrow-space thousands separator, and model names.
+    assert pipeline.numbers_in("warm-up of 4\u202f000 steps") == {"4000"}
+    assert pipeline.numbers_in("HG38 with W8A8, BF16 and M3T1 at 24kHz") == {"24"}
+
+
+def test_inline_list_markers_are_not_claims():
+    assert pipeline.check("Streams: 1) text, 2) semantic [moshi-C-002].", PIECES) == ""
 
 
 def test_fraction_and_percentage_are_the_same_number():

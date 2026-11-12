@@ -92,6 +92,10 @@ async def run(questions, index, api_key, cap, base_url=None, sheet_path=None):
             done.append((q, result))
             print(f"{len(done):3d} {result['outcome']:<18} {result['total_ms']:>9} ms "
                   f"{result['tokens_in'] + result['tokens_out']:>5} tok  {q['question'][:60]}")
+            body = (result["model_record"] or {}).get("error_body") or ""
+            if llm.limit_kind(body) in ("RPD", "TPD"):  # the day is gone: stop, keep evidence
+                print(f"Stopping: daily limit reached ({llm.limit_kind(body)}). Body: {body}")
+                break
     write_sheet(done, sheet_path)
     print(f"Spent {spent} tokens (cap {cap}). Grade by hand: {sheet_path}")
     return done, spent

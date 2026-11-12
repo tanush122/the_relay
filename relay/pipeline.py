@@ -32,8 +32,14 @@ NOT_A_PIECE_ID = "NOT A PIECE ID (citation could not be parsed)"
 CITATION_GROUP = re.compile(r"[\[【]([^\[\]【】]+)[\]】]")
 # A comma is a thousands separator only before exactly three digits (2,048), so a list
 # like "(4,5,6,8)" reads as four numbers, not 4568 (bug seen on the first real run, 12 Nov).
-NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?![\d,])(?:\.\d+)?|\d+(?:\.\d+)*")
-LIST_MARKER = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+", re.MULTILINE)  # "1. " is not a claim
+# Real gpt-oss output (12 Nov) also writes "4\u202f000" (narrow space as thousands separator),
+# and names like HG38, W8A8, BF16 or M3T1 hold digits that are not claims: a number may
+# not follow a letter, a digit or a point.
+NUMBER = re.compile(r"(?<![A-Za-z_\d.])(?:\d{1,3}(?:,\d{3})+(?![\d,])|\d{1,3}(?:[\u202f\u00a0\u2009]\d{3})+(?!\d)"
+                    r"|\d+)(?:\.\d+)*")
+SEPARATORS = ",\u202f\u00a0\u2009"
+# "1. " at a line start and "1) " anywhere number a list; they are not claims.
+LIST_MARKER = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+|(?<![\w.])\d+\)\s", re.MULTILINE)
 # A sentence ends at . ! ? or a line break, once the next text is not a citation for it.
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[^\s\[【])|\n+(?=[^\s\[【])")
 # A "sentence" ending in one of these is not finished: it is joined to the next one.
@@ -130,7 +136,7 @@ def map_citations(text, pieces):
 
 
 def numbers_in(text):
-    return {n.replace(",", "") for n in NUMBER.findall(text)}
+    return {n.translate({ord(c): None for c in SEPARATORS}) for n in NUMBER.findall(text)}
 
 
 def same_value(number, evidence):
