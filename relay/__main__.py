@@ -148,7 +148,8 @@ def main(argv=None):
         report.print_report()
     elif args.command == "load":
         path = Path(args.results) if args.results else None
-        rows, gate, _, wall = asyncio.run(loadgen.run(args.scenario, args.requests, path))
+        traces = path.with_name(path.stem + "_traces.jsonl") if path else None
+        rows, gate, _, wall = asyncio.run(loadgen.run(args.scenario, args.requests, path, traces))
         print(f"{args.scenario}: {len(rows)} requests in {wall:.0f} wall s; "
               f"peak gateway queue {gate.peak_queue}")
         report.print_report(path)
