@@ -16,6 +16,7 @@ A paragraph is supported when all three hold:
    4k, 1.1 kbps = 1,100 bps, 76.6% = 0.766, 10^-9 = 1e-9, "eight"), rounding, and simple
    arithmetic on two numbers of the cited pieces (marked "derived"). Digits inside names
    (HG38, W8A8, GPT-3) and reference numbers (Table 3, Eq. 10, §2.2.1) are not claims.
+   Derived means a difference or a ratio of two numbers in the cited pieces.
 """
 
 import itertools
@@ -124,7 +125,9 @@ def number_status(item, evidence):
     base = [ev for _, ev, _, _ in evidence][:80]
     exact = value.is_integer() and decimals == 0  # a whole number must come out exactly
     for a, b in itertools.permutations(base, 2):
-        for result in (abs(a - b), a + b, a * b, a / b if b else None):
+        # Differences and ratios only ("a 3.5-point drop", "3.6x"): sums and products of two
+        # unrelated numbers matched too much by chance (12 Nov: "1.1 kbps" passed that way).
+        for result in (abs(a - b), a / b if b else None):
             if result is None:
                 continue
             if (abs(result - value) < 1e-9) if exact else _close(value, result, decimals):

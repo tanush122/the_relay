@@ -38,7 +38,7 @@ def understand(question):
         raise ValueError("empty question")
     if len(q) > config.MAX_QUESTION_CHARS:
         raise ValueError(f"question longer than {config.MAX_QUESTION_CHARS} characters")
-    return q, search.detect_papers(q)
+    return q, None  # which papers: decided by meaning in search.route at retrieval
 
 
 def keywords(question):
@@ -46,7 +46,15 @@ def keywords(question):
 
 
 def retrieve_and_decide(index, question, papers, requery=True):
-    """(pieces or None if still weak, attempts). At most MAX_REQUERIES re-queries."""
+    """(pieces or None if still weak, attempts). At most MAX_REQUERIES re-queries.
+
+    A weak first search is retried once: across all three papers if it was limited to
+    some, otherwise with the question rewritten from what the first search found (the
+    section titles of its best pieces), so the second search looks where the papers
+    discuss the question's subject (config.REQUERY == "context"; "keywords" = old rule).
+    """
+    if papers is None:
+        papers = search.route(index, question)
     query, scope, attempts = question, papers, []
     for _ in range(config.MAX_REQUERIES + 1 if requery else 1):
         start = clock.now()
@@ -56,8 +64,11 @@ def retrieve_and_decide(index, question, papers, requery=True):
                          "ms": clock.ms_since(start)})
         if strength >= config.MIN_STRENGTH:
             return [p for p, _ in results], attempts
-        if scope:
+        if scope and len(scope) < len(index.get("centroids") or {"a": 0, "b": 0, "c": 0}):
             scope = set()  # widen: search all three papers
+        elif config.REQUERY == "context":
+            titles = dict.fromkeys(p["section_title"] for p, _ in results[:2])
+            query = question + " " + " ".join(titles)
         else:
             query = keywords(question)
     return None, attempts

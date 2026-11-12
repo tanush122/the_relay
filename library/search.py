@@ -76,9 +76,26 @@ def build_index(blocks_by_paper, setting_name):
             windows.append(text)
             owner.append(i)
     emb = _embed(windows)
+    centroids = {}  # each paper's average meaning, for routing a question by meaning
+    for paper in {p["paper"] for p in pieces}:
+        rows = [w for w, i in enumerate(owner) if pieces[i]["paper"] == paper]
+        mean = emb[rows].mean(axis=0)
+        centroids[paper] = mean / np.linalg.norm(mean)
     timings["build_s"] = round(time.perf_counter() - start, 3)
     return {"setting": setting_name, "pieces": pieces, "bm25": bm25, "windows": windows,
-            "owner": np.array(owner), "emb": emb, "timings": timings}
+            "owner": np.array(owner), "emb": emb, "centroids": centroids, "timings": timings}
+
+
+def route(index, question):
+    """The papers a question is about, judged by meaning (config.ROUTING == "meaning"):
+    the question's similarity to each paper's average meaning; every paper within
+    config.ROUTE_MARGIN of the closest one is searched. With "names", the old alias list."""
+    if config.ROUTING != "meaning":
+        return detect_papers(question)
+    q = _embed([question])[0]
+    scores = {paper: float(c @ q) for paper, c in index["centroids"].items()}
+    best = max(scores.values())
+    return {paper for paper, score in scores.items() if score >= best - config.ROUTE_MARGIN}
 
 
 def _best_per_piece(window_scores, owner, n_pieces):
@@ -125,7 +142,7 @@ def retrieve(index, question, papers=None):
     start = time.perf_counter()
     setting = config.SETTINGS[index["setting"]]
     pieces = index["pieces"]
-    papers = detect_papers(question) if papers is None else papers
+    papers = route(index, question) if papers is None else papers
     pool = [i for i, p in enumerate(pieces) if not papers or p["paper"] in papers]
 
     cosine = _best_per_piece(index["emb"] @ _embed([question])[0], index["owner"], len(pieces))

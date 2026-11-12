@@ -95,6 +95,15 @@ MODEL_PARAMS = {
     "openai/gpt-oss-120b": {"reasoning_effort": "low"},
 }
 
+# --- Routing and re-query (robust-by-default audit, 12 Nov) ---
+# "meaning": a question goes to the papers whose average meaning is within ROUTE_MARGIN
+# of the closest (library/search.py route); "names": the old alias list below.
+ROUTING = "names"  # switched after the offline measurement (docs/DECISIONS.md)
+ROUTE_MARGIN = 0.05
+# "context": a weak search is rewritten with the section titles the first search found;
+# "keywords": the old rule (stop words removed).
+REQUERY = "keywords"
+
 # --- Pipeline: understand, retrieve, decide, draft, check (relay/pipeline.py) ---
 # Decide: below this retrieval strength (best cosine, 0..1) the question is re-queried once,
 # then refused with no model call. PROVISIONAL: set from Tanush's question runs (EVAL-05).
