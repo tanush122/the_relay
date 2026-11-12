@@ -29,7 +29,7 @@ def test_supported_numbers(claim):
 @pytest.mark.parametrize("claim", ["It runs at 25 Hz.", "Warm-up is 8,000 steps.",
                                    "The bitrate is 2.2 kbps.", "Helium scores 61.7."])
 def test_unsupported_numbers(claim):
-    assert check.numbers_problem(claim, PIECE)[0].startswith("numbers not in the cited pieces")
+    assert check.numbers_problem(claim, PIECE)[0].startswith("numbers not in the retrieved pieces")
 
 
 def test_derived_numbers_are_marked():

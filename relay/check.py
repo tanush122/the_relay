@@ -8,13 +8,13 @@ note that part was withheld.
 A paragraph is supported when all three hold:
 1. it cites at least one retrieved piece (any style: [id], 【id】, **id**, a bare id);
 2. meaning: a local NLI model (config.NLI_MODEL) finds its claims entailed by the cited
-   pieces: each sentence is scored against every window of the cited pieces, and the
+   pieces, or failing that by any retrieved piece (models often cite a sibling piece): each sentence is scored against every window of the cited pieces, and the
    paragraph's score is its best-supported sentence. It passes at config.ENTAIL_THRESHOLD,
    calibrated from data (docs/DECISIONS.md; mean, median and whole-paragraph scoring
    separated supported from swapped evidence worse on the same data);
-3. numbers: every number in it is in the cited pieces, allowing other formats (4 000,
+3. numbers: every number in it is in the retrieved pieces, allowing other formats (4 000,
    4k, 1.1 kbps = 1,100 bps, 76.6% = 0.766, 10^-9 = 1e-9, "eight"), rounding, and simple
-   arithmetic on two numbers of the cited pieces (marked "derived"). Digits inside names
+   arithmetic on two numbers of the cited pieces only (marked "derived"). Digits inside names
    (HG38, W8A8, GPT-3) and reference numbers (Table 3, Eq. 10, §2.2.1) are not claims.
    Derived means a difference or a ratio of two numbers in the cited pieces.
 """
@@ -114,15 +114,16 @@ def _close(a, b, decimals):
     return abs(a - b) <= tolerance
 
 
-def number_status(item, evidence):
-    """"found", "derived" or None for one written number against the evidence numbers."""
+def number_status(item, evidence, derive_from=None):
+    """"found", "derived" or None for one written number: found among the evidence numbers,
+    or derived (difference or ratio) from two numbers of `derive_from` (default: evidence)."""
     _, value, decimals, suffix = item
     pool = {v for _, ev, _, sf in evidence for v in forms(ev, sf)}
     if any(_close(f, e, decimals) for f in forms(value, suffix) for e in pool):
         return "found"
     if value.is_integer() and abs(value) < 10:
         return None  # single digits are too easy to derive by chance
-    base = [ev for _, ev, _, _ in evidence][:80]
+    base = [ev for _, ev, _, _ in (evidence if derive_from is None else derive_from)][:80]
     exact = value.is_integer() and decimals == 0  # a whole number must come out exactly
     for a, b in itertools.permutations(base, 2):
         # Differences and ratios only ("a 3.5-point drop", "3.6x"): sums and products of two
@@ -135,17 +136,19 @@ def number_status(item, evidence):
     return None
 
 
-def numbers_problem(paragraph, evidence_text):
-    """("", derived numbers) when every number is supported, else (reason, derived)."""
+def numbers_problem(paragraph, evidence_text, derive_text=None):
+    """("", derived numbers) when every number is supported, else (reason, derived).
+    Numbers are looked up in evidence_text; derived only from derive_text (default: same)."""
     evidence = values(evidence_text)
+    derive_from = values(derive_text) if derive_text is not None else None
     missing, derived = [], []
     for item in values(claims(paragraph), words=False):
-        status = number_status(item, evidence)
+        status = number_status(item, evidence, derive_from)
         if status is None:
             missing.append(item[0])
         elif status == "derived":
             derived.append(item[0])
-    reason = f"numbers not in the cited pieces: {', '.join(missing)}" if missing else ""
+    reason = f"numbers not in the retrieved pieces: {', '.join(missing)}" if missing else ""
     return reason, derived
 
 
@@ -211,19 +214,27 @@ def judge(paragraph, by_id, windows_of):
     key = (paragraph, tuple(ids))
     if key in _JUDGED:
         return _JUDGED[key]
-    verdict = {"ok": False, "reason": "", "score": None, "derived": []}
+    verdict = {"ok": False, "reason": "", "score": None, "derived": [], "scope": None}
     unknown = [i for i in ids if i not in by_id]
     if not ids:
         verdict["reason"] = "no citation"
     elif unknown:
         verdict["reason"] = f"cites what was not retrieved: {', '.join(unknown)}"
     else:
-        evidence = " ".join(by_id[i]["text"] for i in ids)
-        verdict["reason"], verdict["derived"] = numbers_problem(paragraph, evidence)
-        windows = [w for i in ids for w in windows_of(by_id[i])]
-        verdict["score"] = round(meaning_score(paragraph, windows), 4)
+        # Numbers: found in any retrieved piece (models often cite a sibling piece), but
+        # derived only from the pieces this paragraph cites.
+        everything = " ".join(p["text"] for p in by_id.values())
+        cited = " ".join(by_id[i]["text"] for i in ids)
+        verdict["reason"], verdict["derived"] = numbers_problem(paragraph, everything, cited)
+        # Meaning: the cited pieces first, then all retrieved pieces.
+        verdict["scope"] = "cited"
+        verdict["score"] = round(meaning_score(paragraph, [w for i in ids for w in windows_of(by_id[i])]), 4)
+        if verdict["score"] < config.ENTAIL_THRESHOLD:
+            verdict["scope"] = "retrieved"
+            verdict["score"] = round(meaning_score(
+                paragraph, [w for p in by_id.values() for w in windows_of(p)]), 4)
         if not verdict["reason"] and verdict["score"] < config.ENTAIL_THRESHOLD:
-            verdict["reason"] = f"not entailed by the cited pieces (score {verdict['score']})"
+            verdict["reason"] = f"not entailed by the retrieved pieces (score {verdict['score']})"
         verdict["ok"] = not verdict["reason"]
     _JUDGED[key] = verdict
     return verdict

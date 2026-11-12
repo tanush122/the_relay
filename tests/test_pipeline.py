@@ -90,7 +90,7 @@ def test_unsupported_paragraph_is_withheld_the_rest_shown(fake_groq, stub_retrie
     result, shown = ask(fake_groq)
     assert result["outcome"] == "answered_partial"
     assert "2048" in shown and "4096" not in shown and "UNSUPPORTED" not in shown
-    assert config.WITHHELD_NOTE in shown and "numbers not in the cited pieces" in result["check"]
+    assert config.WITHHELD_NOTE in shown and "numbers not in the retrieved pieces" in result["check"]
 
 
 def test_nothing_supported_becomes_a_refusal(fake_groq, stub_retrieval, stub_meaning):
