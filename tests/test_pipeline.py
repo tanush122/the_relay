@@ -54,91 +54,72 @@ def test_build_messages():
         assert piece["piece_id"] in user["content"] and cite_label(piece) in user["content"]
 
 
-def test_map_citations_all_forms():
-    mapped = pipeline.map_citations(
-        "a [attention-C-001, moshi-C-002] b [moshi-C-1234] c [moshi-C-12x] d [see above] "
-        "e 12.5 Hz【attention-C-001】 f [attention-C-001]", PIECES)
-    assert [pid for pid, _ in mapped] == ["attention-C-001", "moshi-C-002", "moshi-C-1234",
-                                          "moshi-C-12x"]  # repeats once; [see above] ignored
-    assert mapped[0][1].startswith("Attention v7, §3.3 ")
-    assert mapped[2][1] == pipeline.NOT_RETRIEVED
-    assert mapped[3][1] == pipeline.NOT_A_PIECE_ID
+def test_citation_labels_any_style():
+    labels = pipeline.citation_labels("A [attention-C-001] and 【moshi-C-002】, B [moshi-C-999].",
+                                      PIECES)
+    assert labels == [cite_label(PIECES[0]), cite_label(PIECES[1])]  # unknown ids are dropped
 
 
-@pytest.mark.parametrize("sentence, reason", [
-    ("d_ff is 2048 [attention-C-001].", ""),
-    ("Mimi gives about 1000 tokens 【moshi-C-002】.", ""),  # 1,000 in the piece
-    ("It is in §3.3 [attention-C-001].", ""),  # section numbers come from the label
-    ("1. d_ff is 2048 [attention-C-001]", ""),  # a list marker is not a claim
-    ("d_ff is 2048.", "no citation"),
-    ("d_ff is 2048 [attention-C-009].", "cites what was not retrieved: attention-C-009"),
-    ("d_ff is 4096 [attention-C-001].", "numbers not in the cited pieces: 4096"),
-    ("Mimi runs at 12.5 Hz [attention-C-001].", "numbers not in the cited pieces: 12.5"),
-    ("Only 1.25 of frames [moshi-C-002].", "numbers not in the cited pieces: 1.25"),
-])
-def test_check(sentence, reason):
-    assert pipeline.check(sentence, PIECES) == reason
+@pytest.fixture
+def stub_meaning(monkeypatch):
+    """A deterministic stand-in for the NLI model (the real one is tested in test_check):
+    a claim is 'entailed' unless it contains the fixture word UNSUPPORTED, and a sentence
+    'says not covered' when it contains 'do not say'."""
+    from relay import check
+    monkeypatch.setattr(check, "meaning_score",
+                        lambda para, windows: 0.0 if "UNSUPPORTED" in para else 0.9)
+    monkeypatch.setattr(check, "says_not_covered", lambda text: "do not say" in text)
+    check._JUDGED.clear()
 
 
-def test_numbers_lists_and_thousands():
-    # First real run (12 Nov): Moshi writes striding factors as "(4,5,6,8)".
-    assert pipeline.numbers_in("striding factors (4,5,6,8) and 2,048 tokens, 3.3.1") == \
-        {"4", "5", "6", "8", "2048", "3.3.1"}
-    assert pipeline.numbers_in("(3,3)-DC and 100,000 steps") == {"3", "100000"}
-    # Real gpt-oss output, 12 Nov: a narrow-space thousands separator, and model names.
-    assert pipeline.numbers_in("warm-up of 4\u202f000 steps") == {"4000"}
-    assert pipeline.numbers_in("HG38 with W8A8, BF16 and M3T1 at 24kHz") == {"24"}
-
-
-def test_inline_list_markers_are_not_claims():
-    assert pipeline.check("Streams: 1) text, 2) semantic [moshi-C-002].", PIECES) == ""
-
-
-def test_fraction_and_percentage_are_the_same_number():
-    # The paper writes 0.766; an answer may say 76.6% (Moshi Table 16, Tanush's Q15).
-    assert pipeline.same_value("76.6", {"0.766"}) and pipeline.same_value("0.766", {"76.6"})
-    assert not pipeline.same_value("76.7", {"0.766"})
-
-
-def test_answered_and_streamed_by_sentence(fake_groq, stub_retrieval):
-    fake_groq.reply_text = ("d_ff is 2048 [attention-C-001]. Mimi runs at 12.5 frames per "
+def test_answered_paragraph_by_paragraph(fake_groq, stub_retrieval, stub_meaning):
+    fake_groq.reply_text = ("d_ff is 2048 [attention-C-001].\n\nMimi runs at 12.5 frames per "
                             "second [moshi-C-002].")
     result, shown = ask(fake_groq)
     assert result["outcome"] == "answered" and result["status"] == "ok"
-    assert shown.strip() == fake_groq.reply_text
+    assert "2048" in shown and "12.5" in shown
     assert result["citations"] == [cite_label(p) for p in PIECES]
     assert 0 < result["first_token_ms"] <= result["total_ms"]
     assert (result["tokens_in"], result["tokens_out"]) == (20, 5)  # the fake's usage
     assert fake_groq.requests[0]["max_tokens"] == pipeline.max_tokens()
 
 
-def test_abbreviations_do_not_end_a_sentence(fake_groq, stub_retrieval):
-    fake_groq.reply_text = "The inner size, e.g. d_ff, is 2048 [attention-C-001]."
-    result, shown = ask(fake_groq)
-    assert result["outcome"] == "answered" and shown.strip() == fake_groq.reply_text
-
-
-def test_check_stops_the_reply_at_the_first_bad_sentence(fake_groq, stub_retrieval):
-    fake_groq.reply_text = "d_ff is 2048 [attention-C-001]. It has 4096 heads [attention-C-001]."
+def test_unsupported_paragraph_is_withheld_the_rest_shown(fake_groq, stub_retrieval, stub_meaning):
+    fake_groq.reply_text = ("d_ff is 2048 [attention-C-001].\n\nIt has 4096 heads "
+                            "[attention-C-001].\n\nUNSUPPORTED claim [moshi-C-002].")
     result, shown = ask(fake_groq)
     assert result["outcome"] == "answered_partial"
-    assert "4096" not in shown and "2048" in shown and "stopped there" in shown
+    assert "2048" in shown and "4096" not in shown and "UNSUPPORTED" not in shown
+    assert config.WITHHELD_NOTE in shown and "numbers not in the cited pieces" in result["check"]
 
 
-def test_unchecked_answer_becomes_a_refusal(fake_groq, stub_retrieval):
+def test_nothing_supported_becomes_a_refusal(fake_groq, stub_retrieval, stub_meaning):
     fake_groq.reply_text = "d_ff is 4096 [attention-C-001]."
     result, shown = ask(fake_groq)
     assert result["outcome"] == "refused_check" and "4096" not in shown
     assert shown == config.CHECK_FAILED_TEXT and result["first_token_ms"] is not None
 
 
-def test_model_refusal(fake_groq, stub_retrieval):
+def test_uncited_paragraph_is_withheld(fake_groq, stub_retrieval, stub_meaning):
+    fake_groq.reply_text = "d_ff is 2048 [attention-C-001].\n\nAlso, it is great."
+    result, shown = ask(fake_groq)
+    assert result["outcome"] == "answered_partial" and "great" not in shown
+
+
+def test_model_refusal(fake_groq, stub_retrieval, stub_meaning):
     fake_groq.reply_text = "The papers do not say."
     result, shown = ask(fake_groq)
-    assert result["outcome"] == "refused_model" and shown == config.REFUSAL_TEXT
+    assert result["outcome"] == "refused_model" and "do not say" in shown
 
 
-def test_reasoning_only_is_not_an_answer(fake_groq, stub_retrieval):
+def test_answer_with_an_uncovered_part(fake_groq, stub_retrieval, stub_meaning):
+    fake_groq.reply_text = ("d_ff is 2048 [attention-C-001].\n\nThe papers do not say "
+                            "how many GPUs were used.")
+    result, shown = ask(fake_groq)
+    assert result["outcome"] == "answered_partial" and "GPUs" in shown and "2048" in shown
+
+
+def test_reasoning_only_is_not_an_answer(fake_groq, stub_retrieval, stub_meaning):
     fake_groq.reply_text, fake_groq.reasoning_text = "", "thinking"
     result, shown = ask(fake_groq)
     assert result["outcome"] == "refused_check" and "no visible text" in result["check"]
@@ -156,21 +137,21 @@ def test_weak_retrieval_requeries_once_then_refuses_with_no_model_call(fake_groq
     assert result["first_token_ms"] is None and result["tokens_in"] == 0
 
 
-def test_requery_uses_keywords_when_no_paper_was_named(fake_groq, stub_retrieval):
+def test_requery_uses_keywords_when_no_paper_was_named(fake_groq, stub_retrieval, stub_meaning):
     calls, state = stub_retrieval
     state["strength"] = 0.0
     ask(fake_groq, "What is the weather like?")
     assert calls[1][0] == "weather like"
 
 
-def test_rate_limited_call(fake_groq, stub_retrieval):
+def test_rate_limited_call(fake_groq, stub_retrieval, stub_meaning):
     fake_groq.force_status = 429
     result, shown = ask(fake_groq)
     assert result["status"] == "rate_limited"
     assert result["outcome"] == "error" and result["first_token_ms"] is None
 
 
-def test_empty_question_refused_before_any_work(fake_groq, stub_retrieval):
+def test_empty_question_refused_before_any_work(fake_groq, stub_retrieval, stub_meaning):
     calls, _ = stub_retrieval
     result, shown = ask(fake_groq, "   ")
     assert result["outcome"] == "refused_understand" and calls == [] and "empty" in shown

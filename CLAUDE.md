@@ -18,6 +18,7 @@ Source documents: docs/BRIEF.md (verbatim brief, the authority), docs/PLAN.md (p
 - **Provider**: one Groq free account, one key; no tricks around limits (brief ground rule, Groq terms 3.2/6.3).
 - **Security**: the Groq key lives only in a git-ignored .env; never in a committed file, log, output or chat.
 - **Quota**: the daily token limit is shared by every real run; every real run prints its estimated token cost first and needs Tanush's yes.
+- **Robust by default (Tanush, 12 Nov)**: no literal, hard-coded or happy-path-only first versions; judge meaning rather than matching strings; no per-question or per-paper special cases; every part must handle real, varied input.
 - **Timeline**: four phases across Tue 10 – Fri 13 Nov 2026.
 - **Environment**: work locally on Tanush's laptop in ~/Desktop/the-relay; installs (uv, Python 3.12) need his approval.
 

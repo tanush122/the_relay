@@ -24,26 +24,8 @@ import uuid
 import config
 from library import search
 from library.pieces import cite_label
-from relay import clock, llm
+from relay import check, clock, llm
 
-NOT_RETRIEVED = "NOT AMONG RETRIEVED PIECES"
-NOT_A_PIECE_ID = "NOT A PIECE ID (citation could not be parsed)"
-# A citation group: [id], [id, id], or gpt-oss's own 【id】 (seen in the first real answer).
-CITATION_GROUP = re.compile(r"[\[【]([^\[\]【】]+)[\]】]")
-# A comma is a thousands separator only before exactly three digits (2,048), so a list
-# like "(4,5,6,8)" reads as four numbers, not 4568 (bug seen on the first real run, 12 Nov).
-# Real gpt-oss output (12 Nov) also writes "4\u202f000" (narrow space as thousands separator),
-# and names like HG38, W8A8, BF16 or M3T1 hold digits that are not claims: a number may
-# not follow a letter, a digit or a point.
-NUMBER = re.compile(r"(?<![A-Za-z_\d.])(?:\d{1,3}(?:,\d{3})+(?![\d,])|\d{1,3}(?:[\u202f\u00a0\u2009]\d{3})+(?!\d)"
-                    r"|\d+)(?:\.\d+)*")
-SEPARATORS = ",\u202f\u00a0\u2009"
-# "1. " at a line start and "1) " anywhere number a list; they are not claims.
-LIST_MARKER = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+|(?<![\w.])\d+\)\s", re.MULTILINE)
-# A sentence ends at . ! ? or a line break, once the next text is not a citation for it.
-SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[^\s\[【])|\n+(?=[^\s\[【])")
-# A "sentence" ending in one of these is not finished: it is joined to the next one.
-ABBREVIATIONS = ("e.g.", "i.e.", "et al.", "Fig.", "Eq.", "Sec.", "Tab.", "vs.", "cf.")
 STOPWORDS = set("what which who whom whose how why when where does do did is are was were "
                 "the a an of in on for to and or by with from at as this that these those "
                 "it its paper papers please tell me about describe explain".split())
@@ -121,99 +103,58 @@ def fit_to_ceiling(question, pieces, level="normal"):
         pieces = pieces[:-1]
 
 
-def map_citations(text, pieces):
-    """[(cited id, label)] in first-seen order. Unknown ids and unparsable parts are flagged."""
+def citation_labels(text, pieces):
+    """"Paper vN, §section" for every retrieved piece the text cites, in any style."""
     by_id = {p["piece_id"]: p for p in pieces}
-    found = []
-    for group in CITATION_GROUP.findall(text):
-        for part in group.split(","):
-            part = part.strip()
-            if re.fullmatch(config.CITATION_ID, part):
-                found.append((part, cite_label(by_id[part]) if part in by_id else NOT_RETRIEVED))
-            elif re.search(r"-[ABC]-", part):
-                found.append((part, NOT_A_PIECE_ID))
-    return list(dict.fromkeys(found))
-
-
-def numbers_in(text):
-    return {n.translate({ord(c): None for c in SEPARATORS}) for n in NUMBER.findall(text)}
-
-
-def same_value(number, evidence):
-    """True if `number` is in the evidence as written, or as its fraction or percentage:
-    papers often give 0.766 where an answer says 76.6% (Moshi Table 16)."""
-    if number in evidence:
-        return True
-    try:
-        value = float(number)
-    except ValueError:
-        return False
-    return any(abs(float(e) - value / 100) < 1e-9 or abs(float(e) - value * 100) < 1e-9
-               for e in evidence if e.replace(".", "", 1).isdigit())
-
-
-def check(sentence, pieces):
-    """"" if the sentence may be shown, else why not."""
-    cited = map_citations(sentence, pieces)
-    if not cited:
-        return "no citation"
-    bad = [pid for pid, label in cited if label in (NOT_RETRIEVED, NOT_A_PIECE_ID)]
-    if bad:
-        return f"cites what was not retrieved: {', '.join(bad)}"
-    by_id = {p["piece_id"]: p for p in pieces}
-    evidence = " ".join(by_id[pid]["text"] + " " + cite_label(by_id[pid]) for pid, _ in cited)
-    claim = LIST_MARKER.sub("", CITATION_GROUP.sub(" ", sentence))
-    found = numbers_in(evidence)
-    missing = {n for n in numbers_in(claim) if not same_value(n, found)}
-    if missing:
-        return f"numbers not in the cited pieces: {', '.join(sorted(missing))}"
-    return ""
-
-
-def is_refusal(text):
-    return text.strip().lower().startswith(config.REFUSAL_TEXT.lower().rstrip("."))
+    return [cite_label(by_id[i]) for i in check.cited_ids(text) if i in by_id]
 
 
 class Release:
-    """Shows the streamed answer one checked sentence at a time; stops at the first failure."""
+    """Shows the streamed answer one checked paragraph at a time (relay/check.py).
+
+    A paragraph is final once the next one has started (or the reply has ended). A
+    supported paragraph is shown; an unsupported one is withheld and the rest still shown
+    (Tanush, 12 Nov: per paragraph, skip). A sentence that only says what the papers do not
+    cover claims nothing, so it needs no citation; the rest of its paragraph is checked.
+    """
 
     def __init__(self, pieces, show, start):
-        self.pieces, self.show, self.start = pieces, show, start
-        self.buffer, self.shown, self.failed, self.refused = "", [], "", False
-        self.first_ms = None
+        self.by_id = {p["piece_id"]: p for p in pieces}
+        self.show, self.start = show, start
+        self.buffer, self.done = "", 0
+        self.shown, self.withheld, self.gaps, self.first_ms = [], [], [], None
 
     def feed(self, text):
         self.buffer += text
-        *sentences, rest = SENTENCE_END.split(self.buffer)
-        carry = ""
-        for sentence in sentences:
-            sentence = carry + sentence
-            carry = sentence + " " if sentence.endswith(ABBREVIATIONS) else ""
-            if not carry:
-                self._release(sentence)
-        self.buffer = carry + rest
+        blocks = check.paragraphs(self.buffer)
+        for block in blocks[self.done:-1]:
+            self._release(block)
+        self.done = max(self.done, len(blocks) - 1)
 
     def finish(self):
-        if self.buffer.strip():
-            self._release(self.buffer)
-        self.buffer = ""
+        blocks = check.paragraphs(self.buffer)
+        for block in blocks[self.done:]:
+            self._release(block)
+        self.done = len(blocks)
 
     def _say(self, text):
         if self.first_ms is None:
             self.first_ms = elapsed_ms(self.start)
-        self.show(text)
+        self.show(text + "\n\n")
 
-    def _release(self, sentence):
-        if self.failed or self.refused:
+    def _release(self, block):
+        sentences = check.SENTENCE.split(block)
+        claims = [x for x in sentences if not check.says_not_covered(x)]
+        if not claims:
+            self.gaps.append(block)
+            self._say(block)
             return
-        if not self.shown and is_refusal(sentence):  # the model's own "papers do not say"
-            self.refused = True
-            self._say(config.REFUSAL_TEXT)
-            return
-        self.failed = check(sentence, self.pieces)
-        if not self.failed:
-            self.shown.append(sentence)
-            self._say(sentence + " ")
+        verdict = check.judge(" ".join(claims), self.by_id, lambda p: search.split_windows(p["text"]))
+        if verdict["ok"]:
+            self.shown.append(block)
+            self._say(block)
+        else:
+            self.withheld.append(verdict["reason"])
 
 
 def elapsed_ms(start):
@@ -339,30 +280,31 @@ async def answer(question, index, client, api_key, base_url=None, show=lambda te
         span("backoff", began)
         attempt += 1
     result["retries"] = attempt
-    if record["status"] == 200 and not record["exception"] and not (release.shown or release.failed or release.refused):
-        release.failed = "no visible text (reasoning may have used all of max_tokens)"
+    nothing = not (release.shown or release.withheld or release.gaps)
+    if record["status"] == 200 and not record["exception"] and nothing:
+        release.withheld.append("no visible text (reasoning may have used all of max_tokens)")
     usage = record["usage"] or {}
     result.update(
         model=record["model"], status=status_of(record), first_token_ms=release.first_ms,
         tokens_in=usage.get("prompt_tokens", 0), tokens_out=usage.get("completion_tokens", 0),
         reasoning_tokens=(usage.get("completion_tokens_details") or {}).get("reasoning_tokens", 0),
-        reply=" ".join(release.shown), check=release.failed,
-        citations=[label for s in release.shown for _, label in map_citations(s, pieces)],
+        reply="\n\n".join(release.shown + release.gaps), check="; ".join(release.withheld),
+        citations=list(dict.fromkeys(label for block in release.shown
+                                     for label in citation_labels(block, pieces))),
         model_record={k: record[k] for k in ("status", "headers", "ttft_ms", "first_reasoning_ms",
                                              "total_ms", "content", "error_body", "exception",
                                              "new_connection")})
-    result["citations"] = list(dict.fromkeys(result["citations"]))
     if result["status"] != "ok":
         return finish("error", f"[The model service failed ({result['status']}); "
                                "please ask again shortly.]")
-    if release.refused:
-        result["reply"] = config.REFUSAL_TEXT
-        return finish("refused_model")
-    if release.failed and not release.shown:
+    if not release.shown:
+        if release.gaps and not release.withheld:
+            return finish("refused_model")  # the model said the papers do not cover it
         return finish("refused_check", config.CHECK_FAILED_TEXT)
-    if release.failed:
-        return finish("answered_partial", " I could not check the rest against the papers, "
-                                          "so I stopped there.")
+    if release.withheld:
+        return finish("answered_partial", config.WITHHELD_NOTE)
+    if release.gaps:
+        return finish("answered_partial")
     if gateway:  # only a fully checked answer is cached
         gateway.cache[key] = {"reply": result["reply"], "citations": result["citations"]}
     return finish("answered")

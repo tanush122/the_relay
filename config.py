@@ -106,6 +106,8 @@ MIN_STRENGTH = 0.30
 MAX_REQUERIES = 1  # the loop cap: at most one re-query per question
 MAX_QUESTION_CHARS = 1000  # understand: longer questions are refused before any work
 REFUSAL_TEXT = "The papers do not say."  # the model's own refusal, from the prompt below
+WITHHELD_NOTE = ("[Part of this answer was withheld because it could not be checked against "
+                 "the papers.]")
 CHECK_FAILED_TEXT = ("I could not check an answer against the papers, so I will not guess. "
                      "The papers may not say this.")
 # Draft: gpt-oss reasons before its visible text (probe, 10 Nov: ~6 reasoning tokens on a
@@ -125,10 +127,26 @@ PRICE_PER_MILLION_TOKENS = None
 # --- Answer drafting ---
 ANSWER_SYSTEM_PROMPT = (
     "Answer the question using only the numbered pieces of the papers given below. "
-    "End every sentence with the id of the piece it comes from in square brackets, "
-    "for example [moshi-C-012]. If the pieces do not contain the answer, reply "
-    "exactly: The papers do not say."
+    "Answer every part of the question that the pieces support, and end each paragraph with "
+    "the ids of the pieces that support it in square brackets, for example [moshi-C-012]. "
+    "Say plainly which parts of the question the pieces do not cover. Only if the pieces "
+    "support nothing relevant to the question, reply exactly: The papers do not say."
 )
+# The check's meaning test (relay/check.py): a local NLI cross-encoder, and the entailment
+# score a paragraph needs. The threshold is calibrated from data (docs/DECISIONS.md).
+NLI_MODEL = "cross-encoder/nli-MiniLM2-L6-H768"
+# Calibrated 12 Nov on paragraphs of the 54 real replies whose citations and numbers check
+# out (23, presumed supported; weak labels) vs the same paragraphs judged against pieces of
+# another paper (test fixtures). Chosen to favour few wrong passes: at 0.4 (best sentence)
+# the whole gate keeps 48% of the first and lets 4% (1 of 23) of the second through; at
+# 0.25 it would keep 65% but let 13% through. Mean, median and share-of-sentences rules
+# did worse on the same data.
+ENTAIL_THRESHOLD = 0.4
+# A paragraph that says what the papers do not cover needs no citation (it claims nothing).
+# Chosen 12 Nov from five phrasings on varied test wordings (fixtures): with this one, six
+# "not covered" wordings scored at least 0.49 and five factual claims at most 0.27.
+NOT_COVERED_HYPOTHESIS = "The answer is not given."
+NOT_COVERED_THRESHOLD = 0.4
 # One piece id, e.g. moshi-C-012. A bracket may hold several, separated by commas.
 CITATION_ID = r"[a-z]+-[ABC]-\d+"
 

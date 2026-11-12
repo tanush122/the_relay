@@ -12,7 +12,12 @@ import pytest
 import config
 from relay import evaluate, report, results
 from tests.fake_groq import fake_groq  # noqa: F401  (pytest fixture)
-from tests.test_pipeline import stub_retrieval  # noqa: F401  (pytest fixture)
+from tests.test_pipeline import stub_meaning, stub_retrieval  # noqa: F401
+
+
+@pytest.fixture(autouse=True)
+def meaning_stubbed(stub_meaning):
+    """These tests are about the gateway, files and commands, not meaning (see test_check)."""
 
 
 @pytest.fixture(autouse=True)
