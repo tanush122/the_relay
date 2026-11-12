@@ -55,6 +55,8 @@ def test_paragraphs_keep_formulas_and_lists_with_their_text():
 
 def test_claims_drop_citations_and_markup():
     assert check.claims("**Mimi** runs at \\(12.5\\) Hz [moshi-C-016].") == "Mimi runs at 12.5 Hz ."
+    assert check.claims("- item one\n- $\\beta_1 = 0.9$") == "item one. beta 1 = 0.9."
+    assert check.cited_ids("see moshi\u2011C\u2011016") == ["moshi-C-016"]  # non-breaking hyphens
 
 
 NLI_CACHED = (config.MODEL_CACHE_DIR / "hub" / "models--cross-encoder--nli-MiniLM2-L6-H768").exists()

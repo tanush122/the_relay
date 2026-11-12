@@ -1,54 +1,72 @@
-{"request_id": "587d7b8142764087bcddfc889610a125", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4761.1}
-{"request_id": "43d1b0029c3f43f48bf4902d34a18ef4", "setting": "C", "old": "answered", "new": "answered", "withheld": [], "check_ms": 126.7}
-{"request_id": "c86096b6f277491cb29131da54d6b31a", "setting": "C", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 204.4}
-{"request_id": "169f205d54824a5a87d187051c001c57", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["no citation"], "check_ms": 10.9}
-{"request_id": "b74dbb2959df4d72b5e5ea2a5079875f", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": [], "check_ms": 126.3}
-{"request_id": "1acb445d21ee44f981e9d70a75625c18", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "3b29389c773a4c4aa42fdf0d25df2d8c", "setting": "C", "old": "answered", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.3302)"], "check_ms": 466.7}
-{"request_id": "279fc9145398473a8aceafff5fa33c67", "setting": "C", "old": "answered", "new": "answered", "withheld": [], "check_ms": 115.8}
-{"request_id": "a575fc982f094163bfad984610c8b90a", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.4}
-{"request_id": "68ebff4f8bf9460ca41545514b120338", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": [], "check_ms": 280.8}
-{"request_id": "e36c873a23f14466bd1a5099153a9e7a", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.3}
-{"request_id": "09a446ad1599409793644a88fc2b554b", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.045)"], "check_ms": 408.7}
-{"request_id": "fc38d72c54cb456d8f00178df3e4236e", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["no citation", "no citation", "no citation"], "check_ms": 49.2}
-{"request_id": "60817cd8ab1a4da0b54fa15484050168", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["no citation", "no citation", "no citation"], "check_ms": 36.1}
-{"request_id": "ade35f56f95d44df96488f35ec2266c8", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "805b807b632548c5b6de827cbbe5fe56", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "edf453d073ab45b3a07519ba6efa326f", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "927304dab1cc4261a570fab989f40c0c", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "fbb27721d5f44eab8673243148f2bf28", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.3}
-{"request_id": "121ce9728216443285061827da1d8e7d", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.1}
-{"request_id": "b4df75a27e474e5f9dd53e25cf2e054b", "setting": "A", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 119.6}
-{"request_id": "4191390c97b3455e89d006966cc5d31a", "setting": "A", "old": "refused_check", "new": "refused_check", "withheld": ["numbers not in the cited pieces: 12.5, 17, 3, 4, 5"], "check_ms": 114.4}
-{"request_id": "368f2070988e4253a702f8874ecf1e03", "setting": "A", "old": "refused_check", "new": "refused_check", "withheld": ["no citation", "no citation"], "check_ms": 34.5}
-{"request_id": "21b2c58d581a400faaa8e636ea01585a", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.3}
-{"request_id": "a93dcddede404ca99c5be5fe399eda47", "setting": "A", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.2697)", "not entailed by the cited pieces (score 0.1408)"], "check_ms": 88.6}
-{"request_id": "d10dacf3af6e4ac79feff94c2b622627", "setting": "A", "old": "answered", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.1102)"], "check_ms": 36.5}
-{"request_id": "d8e7cd87fc0a4af2889128e92cb1fec2", "setting": "A", "old": "answered_partial", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.0107)", "numbers not in the cited pieces: 2, 2"], "check_ms": 56.5}
-{"request_id": "d32f31b079f74f7b87d2c546f7f7088e", "setting": "A", "old": "refused_check", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.0738)"], "check_ms": 189.1}
-{"request_id": "151108556d254767b46202d51a69e6fc", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.3}
-{"request_id": "4c7c68c5b43142469826900f400c0095", "setting": "A", "old": "refused_check", "new": "refused_check", "withheld": ["no citation"], "check_ms": 27.6}
-{"request_id": "0d56a6500f414367b9522fc96e33c2aa", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "7f8d1d61119945f4866ba775bb5ae27e", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "e210b8ed87354ca98ab6aca9d3aa7ec0", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "23a8890986744bef87c903a26dfeeea9", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "a9b171a762594e99a9364a6354707da6", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.1}
-{"request_id": "af0a55f3cc87480e8b6f334aabed65d7", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "778ffce0976d4d65b3afb9ab569d1fc4", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["no citation", "no citation"], "check_ms": 24.0}
-{"request_id": "5fe2a68e83184d64ba5d4808792499df", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.169)"], "check_ms": 112.5}
-{"request_id": "a392994fbd5a49068ae9038e529a9a3b", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.2597)"], "check_ms": 231.1}
-{"request_id": "6bbdb8d50ff84f69b9dd96bf2408245a", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.4}
-{"request_id": "ae01459b74bc42b98314f1b6d1ef36d1", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["numbers not in the cited pieces: 4, 4"], "check_ms": 238.1}
-{"request_id": "9bbe0fdea2c74e948757a362af3066ef", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.3}
-{"request_id": "f7f9c1d6cdfc4d43b3555900ba7c7f3f", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["no citation", "not entailed by the cited pieces (score 0.0607)"], "check_ms": 211.8}
-{"request_id": "d93765e2e9ef44debdda637ef5c500e6", "setting": "B", "old": "answered", "new": "answered", "withheld": [], "check_ms": 313.9}
-{"request_id": "14db7b88ccbf404992e692c53247c567", "setting": "B", "old": "answered_partial", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.1446)"], "check_ms": 386.3}
-{"request_id": "aaf28d0c209e4424ad2b6c6ab6a9c00d", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["no citation"], "check_ms": 19.9}
-{"request_id": "7df95f5a881d426b9b55ddf3a2d92445", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.4}
-{"request_id": "d98f318f81ca4913969c45c0321541f0", "setting": "B", "old": "answered", "new": "answered", "withheld": [], "check_ms": 435.5}
-{"request_id": "d27b46efabf8498aa9a56951181e75d4", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["no citation", "no citation", "no citation"], "check_ms": 23.9}
-{"request_id": "54947ec138ea42d592fec37b96fd8ed3", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.2865)"], "check_ms": 513.1}
-{"request_id": "64f59ba272f944ee87565dbe70b546d3", "setting": "B", "old": "answered", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.0777)"], "check_ms": 388.7}
-{"request_id": "a3822246416548d5aa312c52a79fccf3", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.5}
-{"request_id": "2b1cd48a88fc4f87bc993d20b35eafa5", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.2}
-{"request_id": "4e8d46d8662348a4984deb7d3952ceb8", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4.1}
+{"request_id": "587d7b8142764087bcddfc889610a125", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 4834.2}
+{"request_id": "43d1b0029c3f43f48bf4902d34a18ef4", "setting": "C", "old": "answered", "new": "answered", "withheld": [], "check_ms": 141.4}
+{"request_id": "c86096b6f277491cb29131da54d6b31a", "setting": "C", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 206.8}
+{"request_id": "169f205d54824a5a87d187051c001c57", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["no citation"], "check_ms": 12.5}
+{"request_id": "b74dbb2959df4d72b5e5ea2a5079875f", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": [], "check_ms": 116.4}
+{"request_id": "1acb445d21ee44f981e9d70a75625c18", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "3b29389c773a4c4aa42fdf0d25df2d8c", "setting": "C", "old": "answered", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.3302)"], "check_ms": 472.2}
+{"request_id": "279fc9145398473a8aceafff5fa33c67", "setting": "C", "old": "answered", "new": "answered", "withheld": [], "check_ms": 117.3}
+{"request_id": "a575fc982f094163bfad984610c8b90a", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "68ebff4f8bf9460ca41545514b120338", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": [], "check_ms": 280.3}
+{"request_id": "e36c873a23f14466bd1a5099153a9e7a", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "09a446ad1599409793644a88fc2b554b", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.0308)"], "check_ms": 412.6}
+{"request_id": "fc38d72c54cb456d8f00178df3e4236e", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.0502)", "no citation"], "check_ms": 359.0}
+{"request_id": "60817cd8ab1a4da0b54fa15484050168", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.2323)", "no citation"], "check_ms": 191.1}
+{"request_id": "ade35f56f95d44df96488f35ec2266c8", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "805b807b632548c5b6de827cbbe5fe56", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "edf453d073ab45b3a07519ba6efa326f", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "927304dab1cc4261a570fab989f40c0c", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "fbb27721d5f44eab8673243148f2bf28", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "121ce9728216443285061827da1d8e7d", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "b4df75a27e474e5f9dd53e25cf2e054b", "setting": "A", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 120.5}
+{"request_id": "4191390c97b3455e89d006966cc5d31a", "setting": "A", "old": "refused_check", "new": "refused_check", "withheld": ["numbers not in the cited pieces: 12.5, 17, 3, 4, 5"], "check_ms": 113.3}
+{"request_id": "368f2070988e4253a702f8874ecf1e03", "setting": "A", "old": "refused_check", "new": "refused_check", "withheld": ["no citation", "no citation"], "check_ms": 32.7}
+{"request_id": "21b2c58d581a400faaa8e636ea01585a", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "a93dcddede404ca99c5be5fe399eda47", "setting": "A", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.2711)", "not entailed by the cited pieces (score 0.1408)"], "check_ms": 90.6}
+{"request_id": "d10dacf3af6e4ac79feff94c2b622627", "setting": "A", "old": "answered", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.0816)"], "check_ms": 37.5}
+{"request_id": "d8e7cd87fc0a4af2889128e92cb1fec2", "setting": "A", "old": "answered_partial", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.0121)", "not entailed by the cited pieces (score 0.0348)"], "check_ms": 58.2}
+{"request_id": "d32f31b079f74f7b87d2c546f7f7088e", "setting": "A", "old": "refused_check", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.1108)"], "check_ms": 189.9}
+{"request_id": "151108556d254767b46202d51a69e6fc", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "4c7c68c5b43142469826900f400c0095", "setting": "A", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 295.7}
+{"request_id": "0d56a6500f414367b9522fc96e33c2aa", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.1}
+{"request_id": "7f8d1d61119945f4866ba775bb5ae27e", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "e210b8ed87354ca98ab6aca9d3aa7ec0", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "23a8890986744bef87c903a26dfeeea9", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "a9b171a762594e99a9364a6354707da6", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "af0a55f3cc87480e8b6f334aabed65d7", "setting": "A", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "778ffce0976d4d65b3afb9ab569d1fc4", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.3155)", "not entailed by the cited pieces (score 0.0861)"], "check_ms": 562.8}
+{"request_id": "5fe2a68e83184d64ba5d4808792499df", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.1691)"], "check_ms": 132.3}
+{"request_id": "a392994fbd5a49068ae9038e529a9a3b", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.2272)"], "check_ms": 255.8}
+{"request_id": "6bbdb8d50ff84f69b9dd96bf2408245a", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "ae01459b74bc42b98314f1b6d1ef36d1", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["numbers not in the cited pieces: 4, 4"], "check_ms": 270.6}
+{"request_id": "9bbe0fdea2c74e948757a362af3066ef", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "f7f9c1d6cdfc4d43b3555900ba7c7f3f", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.3575)", "not entailed by the cited pieces (score 0.0597)"], "check_ms": 640.0}
+{"request_id": "d93765e2e9ef44debdda637ef5c500e6", "setting": "B", "old": "answered", "new": "answered", "withheld": [], "check_ms": 344.1}
+{"request_id": "14db7b88ccbf404992e692c53247c567", "setting": "B", "old": "answered_partial", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.136)"], "check_ms": 429.6}
+{"request_id": "aaf28d0c209e4424ad2b6c6ab6a9c00d", "setting": "B", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 448.5}
+{"request_id": "7df95f5a881d426b9b55ddf3a2d92445", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "d98f318f81ca4913969c45c0321541f0", "setting": "B", "old": "answered", "new": "answered", "withheld": [], "check_ms": 481.7}
+{"request_id": "d27b46efabf8498aa9a56951181e75d4", "setting": "B", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.0405)", "not entailed by the cited pieces (score 0.3566)", "not entailed by the cited pieces (score 0.0253)"], "check_ms": 211.9}
+{"request_id": "54947ec138ea42d592fec37b96fd8ed3", "setting": "B", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 705.6}
+{"request_id": "64f59ba272f944ee87565dbe70b546d3", "setting": "B", "old": "answered", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.0806)"], "check_ms": 422.9}
+{"request_id": "a3822246416548d5aa312c52a79fccf3", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "2b1cd48a88fc4f87bc993d20b35eafa5", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "4e8d46d8662348a4984deb7d3952ceb8", "setting": "B", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "9062562374c7418f808b572ea6aa8202", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.2034)"], "check_ms": 163.7}
+{"request_id": "17547bf269184fbb8883d7505a872108", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.1063)"], "check_ms": 132.4}
+{"request_id": "16869c0ae3f04041808f87eae339f3ba", "setting": "C", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 555.7}
+{"request_id": "1dfcdec2655547a68f07c52578b69b5a", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["numbers not in the cited pieces: 17, 12.5, 17, 17", "numbers not in the cited pieces: 12.5"], "check_ms": 251.5}
+{"request_id": "0227cca4531a4836bd5badeddf734b0e", "setting": "C", "old": "answered_partial", "new": "answered_partial", "withheld": [], "check_ms": 183.2}
+{"request_id": "d8996710d5b34a4bada7e7fd4e4e482c", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "17c6d68e5ba24019b214be12f848e7e0", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.028)"], "check_ms": 592.3}
+{"request_id": "3171151a8c6c4b8db11267febebb79b6", "setting": "C", "old": "answered_partial", "new": "answered_partial", "withheld": ["not entailed by the cited pieces (score 0.3423)"], "check_ms": 298.5}
+{"request_id": "f3c5a01c5d5f467faa2cd20c8fb1d62a", "setting": "C", "old": "refused_check", "new": "answered_partial", "withheld": [], "check_ms": 503.7}
+{"request_id": "a1c4bc6520f048cf96ee66d078853c55", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.2855)", "numbers not in the cited pieces: 1, 2"], "check_ms": 257.0}
+{"request_id": "1d274b52d7cc437b8f42759429015c18", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.1)"], "check_ms": 742.8}
+{"request_id": "08396406fdd8471ca62aa42aabe283db", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.3815)", "no citation"], "check_ms": 392.9}
+{"request_id": "b0536facb4a4415cb82990c33cb37fb9", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["no citation", "no citation"], "check_ms": 44.8}
+{"request_id": "d83ce399586646349e398072dc530076", "setting": "C", "old": "refused_check", "new": "answered", "withheld": [], "check_ms": 542.7}
+{"request_id": "9e19e236680b4da4b3f491b0c1686e97", "setting": "C", "old": "refused_check", "new": "refused_check", "withheld": ["not entailed by the cited pieces (score 0.2044)", "not entailed by the cited pieces (score 0.1849)"], "check_ms": 348.3}
+{"request_id": "d4a00d20508d47669bbe8efb1904896e", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "0e822ae9e19948bfb7cb4cbc83ddf833", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}
+{"request_id": "8ace900738c740a3b0c4509eca2e7e6b", "setting": "C", "old": "refused_model", "new": "refused_model", "withheld": [], "check_ms": 0.0}

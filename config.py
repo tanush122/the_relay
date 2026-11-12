@@ -275,14 +275,18 @@ SCENARIOS = {
                      "burst": {"at_s": 1800, "count": 60, "over_s": 30}},
     "overload": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
                  "gateway": NO_CACHE},
-    # Retry storm (heading 6): the same overload, with INJECTED slow successes (20% of calls
-    # take 3x longer, so some pass the first-token timeout after the provider has already
+    # Retry storm (heading 6). At 8 a minute nobody can be retried: people already wait
+    # ~8 s in the queue, so after a 4 s first-token timeout a retry would end past the 15 s
+    # give-up, and the deadline rule forbids it (seen 12 Nov: 0 retries). So the storm pair
+    # runs just above capacity (3 a minute vs ~2.7 affordable) with INJECTED slow successes
+    # (30% of calls take 5x longer and pass the first-token timeout after the provider has
     # charged the prompt). Retry budget on (10%) vs off: does retrying make things worse?
-    "overload_retry_on": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
-                          "gateway": NO_CACHE, "standin": {"straggler_rate": 0.2}},
-    "overload_retry_off": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
-                           "gateway": {**NO_CACHE, "retry_budget": None},
-                           "standin": {"straggler_rate": 0.2}},
+    "retry_budget_on": {"rate_per_min": 3.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+                        "gateway": NO_CACHE,
+                        "standin": {"straggler_rate": 0.3, "straggler_factor": 5.0}},
+    "retry_budget_off": {"rate_per_min": 3.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+                         "gateway": {**NO_CACHE, "retry_budget": None},
+                         "standin": {"straggler_rate": 0.3, "straggler_factor": 5.0}},
     "overload_small_first": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
                              "gateway": {**NO_CACHE, "queue_order": "small_first"}},
     # The stand-in's per-minute limits halve mid-run; the gateway is not told.

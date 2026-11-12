@@ -72,10 +72,17 @@ async def run(name, requests=None, results_path=None, trace_path=None, index=Non
     service = standin.StandIn(**{"limits": dict(spec["limits"]), **spec.get("standin", {})})
     gate = gateway.Gateway(**{"limits": spec["limits"], **spec.get("gateway", {})})
     pool, rng, rows = question_pool(), random.Random(seed), []
-    for question in pool:  # warm the retrieval cache before the clock runs (see above)
+    for question in pool:  # warm the retrieval and check caches before the clock runs
         cleaned, papers = pipeline.understand(question)
         for requery in (True, False):
-            pipeline.retrieve_and_decide(index, cleaned, papers, requery)
+            found, _ = pipeline.retrieve_and_decide(index, cleaned, papers, requery)
+        for reply in service.recorded.get(question, []) if found else []:
+            for level in ("normal", "lean"):
+                cut = found[:config.LEVELS[level]["max_pieces"] or len(found)]
+                release = pipeline.Release(pipeline.fit_to_ceiling(cleaned, cut, level)[0],
+                                           lambda text: None, clock.now())
+                release.feed(reply)
+                release.finish()
     begin, wall = clock.now(), time.perf_counter()
 
     async def one(at, question):

@@ -115,7 +115,10 @@ class Release:
     A paragraph is final once the next one has started (or the reply has ended). A
     supported paragraph is shown; an unsupported one is withheld and the rest still shown
     (Tanush, 12 Nov: per paragraph, skip). A sentence that only says what the papers do not
-    cover claims nothing, so it needs no citation; the rest of its paragraph is checked.
+    cover claims nothing, so it needs no citation; the rest of its paragraph is checked. A
+    paragraph with no citation of its own waits for the next one that cites, and is judged
+    against those pieces (models often cite once after several paragraphs); with none
+    later, it is withheld.
     """
 
     def __init__(self, pieces, show, start):
@@ -123,6 +126,7 @@ class Release:
         self.show, self.start = show, start
         self.buffer, self.done = "", 0
         self.shown, self.withheld, self.gaps, self.first_ms = [], [], [], None
+        self.pending = []  # uncited paragraphs waiting for a citation that may follow
 
     def feed(self, text):
         self.buffer += text
@@ -136,6 +140,8 @@ class Release:
         for block in blocks[self.done:]:
             self._release(block)
         self.done = len(blocks)
+        self.withheld += ["no citation"] * len(self.pending)
+        self.pending = []
 
     def _say(self, text):
         if self.first_ms is None:
@@ -149,12 +155,20 @@ class Release:
             self.gaps.append(block)
             self._say(block)
             return
-        verdict = check.judge(" ".join(claims), self.by_id, lambda p: search.split_windows(p["text"]))
-        if verdict["ok"]:
-            self.shown.append(block)
-            self._say(block)
-        else:
-            self.withheld.append(verdict["reason"])
+        ids = check.cited_ids(" ".join(claims))
+        if not ids:
+            self.pending.append((block, " ".join(claims)))
+            return
+        cite = " " + " ".join(f"[{i}]" for i in ids)
+        waiting, self.pending = self.pending, []
+        for earlier, text in waiting + [(block, " ".join(claims))]:
+            text = text if earlier is block else text + cite
+            verdict = check.judge(text, self.by_id, lambda p: search.split_windows(p["text"]))
+            if verdict["ok"]:
+                self.shown.append(earlier)
+                self._say(earlier)
+            else:
+                self.withheld.append(verdict["reason"])
 
 
 def elapsed_ms(start):

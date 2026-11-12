@@ -100,6 +100,12 @@ def test_nothing_supported_becomes_a_refusal(fake_groq, stub_retrieval, stub_mea
     assert shown == config.CHECK_FAILED_TEXT and result["first_token_ms"] is not None
 
 
+def test_a_citation_after_several_paragraphs_covers_them(fake_groq, stub_retrieval, stub_meaning):
+    fake_groq.reply_text = "d_ff is 2048.\n\n- the dimension is 2048\n\nIn short [attention-C-001]."
+    result, shown = ask(fake_groq)
+    assert result["outcome"] == "answered" and shown.count("2048") == 2
+
+
 def test_uncited_paragraph_is_withheld(fake_groq, stub_retrieval, stub_meaning):
     fake_groq.reply_text = "d_ff is 2048 [attention-C-001].\n\nAlso, it is great."
     result, shown = ask(fake_groq)

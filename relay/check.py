@@ -53,16 +53,27 @@ def paragraphs(text):
     return out
 
 
+HYPHENS = str.maketrans({c: "-" for c in "\u2010\u2011\u2012\u2013\u2014\u2212"})
+
+
 def cited_ids(text):
-    return list(dict.fromkeys(CITED.findall(text)))
+    """Every piece id the text cites; models also write ids with non-breaking hyphens
+    (moshi\u2011C\u2011016, seen on 12 Nov), which are read as plain ones."""
+    return list(dict.fromkeys(CITED.findall(text.translate(HYPHENS))))
 
 
 def claims(text):
-    """The paragraph's words with citations, markdown and math delimiters removed."""
-    text = CITED.sub(" ", text)
+    """The paragraph as plain sentences: citations, markdown and LaTeX markup removed
+    (\\beta_1 -> beta 1), each list item or line ending as its own sentence."""
+    text = CITED.sub(" ", text.translate(HYPHENS))
     text = re.sub(r"[\[【]\s*[,;\s]*[\]】]", " ", text)  # brackets left empty by the above
     text = re.sub(r"\\[()\[\]]|\$\$?|\*\*|__|`", " ", text)
-    return " ".join(text.split())
+    text = re.sub(r"\\(?:text|mathrm|mathbf|operatorname|mathcal)\s*", "", text)
+    text = re.sub(r"\\([A-Za-z]+)", r"\1", text).replace("{", " ").replace("}", " ")
+    text = re.sub(r"(?<=\w)_(?=\w)", " ", text)
+    lines = [" ".join(re.sub(r"^\s*(?:[-*•]|\d+[.)])\s+", "", line).split())
+             for line in text.splitlines()]
+    return " ".join(line if line.endswith((".", ":", ";")) else line + "." for line in lines if line)
 
 
 def values(text, words=True):
@@ -169,6 +180,9 @@ def meaning_score(paragraph, windows):
     return float(entailment(windows, sentences).max())
 
 
+_NOT_COVERED = {}
+
+
 def says_not_covered(text):
     """Does this text say the papers do not contain the answer? Judged by meaning (NLI),
     so any wording counts: "The papers do not say", "not covered by the retrieved
@@ -176,8 +190,10 @@ def says_not_covered(text):
     words = claims(text)
     if not words:
         return False
-    score = entailment([words[:1500]], [config.NOT_COVERED_HYPOTHESIS])[0, 0]
-    return float(score) >= config.NOT_COVERED_THRESHOLD
+    if words not in _NOT_COVERED:
+        score = entailment([words[:1500]], [config.NOT_COVERED_HYPOTHESIS])[0, 0]
+        _NOT_COVERED[words] = float(score) >= config.NOT_COVERED_THRESHOLD
+    return _NOT_COVERED[words]
 
 
 _JUDGED = {}  # (paragraph, cited piece ids) -> verdict; replies repeat in load runs

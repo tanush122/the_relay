@@ -8,8 +8,10 @@ Where each behaviour comes from:
 - Time to the first streamed event is resampled from real requests of a similar prompt
   size: the probe's 50 spaced tiny requests, or the 54 real evaluation replies (12 Nov).
 - Time per output token is resampled from Groq's own usage.completion_time figures.
-- Reasoning before the visible answer, answer length and Groq's prompt-token count follow
-  the medians of the 54 real evaluation replies.
+- Replies are real: the stand-in replays a reply Groq actually gave to the same question
+  under the same retrieval setting (evaluation traces), so length, formatting, citation
+  style and refusals vary as they really do. Reasoning tokens and Groq's prompt-token count
+  follow the medians of the real replies.
 - Limits refill continuously (clock.Bucket), as Groq's headers showed; they are settings,
   so a scenario can halve the per-minute limit or shrink the daily budget mid-run.
 - ASSUMED: slowdown when more than 8 requests are in flight (none was measured up to 8).
@@ -66,12 +68,25 @@ def eval_samples(trace_path):
     return first
 
 
+def recorded_replies(trace_path, setting):
+    """question -> the real reply texts Groq gave under this retrieval setting."""
+    out = {}
+    if trace_path.exists():
+        for line in trace_path.read_text().splitlines():
+            t = json.loads(line)
+            content = (t.get("model_record") or {}).get("content")
+            if t.get("scenario", "").startswith("eval-") and t.get("setting") == setting and content:
+                out.setdefault(t["question"], []).append(content)
+    return out
+
+
 class StandIn:
     def __init__(self, **settings):
         self.s = {**config.STANDIN, **settings}
         self.rng = random.Random(self.s["seed"])
         self.first_ms, self.token_ms = probe_samples(config.STANDIN_PROBE_RUN)
         self.first_ms_large = eval_samples(self.s["eval_traces"]) or self.first_ms
+        self.recorded = recorded_replies(self.s["eval_traces"], config.LOAD_SETTING)
         self.limits = {k: clock.Bucket(v, PERIOD_S[k]) for k, v in self.s["limits"].items()}
         self.inflight = 0
 
@@ -109,16 +124,18 @@ class StandIn:
             self.limits[kind].take(amount)
         return httpx.Response(200, headers=self.headers(), content=self.stream(body, prompt))
 
-    def reply_words(self, body):
-        """A cited answer the pipeline's check accepts: no numbers, the first piece's id."""
-        match = re.search(rf"\[({config.CITATION_ID})\]", body["messages"][-1]["content"])
+    def reply_text(self, body):
+        """A real reply Groq gave to this question (recorded in the evaluation traces), so
+        replies vary as real ones do; a synthetic cited sentence only if none was recorded."""
+        user = body["messages"][-1]["content"]
+        question = user.rsplit("Question:", 1)[-1].strip()
+        if self.recorded.get(question):
+            return self.rng.choice(self.recorded[question])
+        match = re.search(rf"\[({config.CITATION_ID})\]", user)
         if not match:
-            return config.REFUSAL_TEXT.split()
-        sentence = f"The cited piece describes this part of the paper [{match.group(1)}]."
-        words = []
-        while len(words) * config.TOKENS_PER_WORD < self.s["answer_tokens"]:
-            words += sentence.split()
-        return words
+            return config.REFUSAL_TEXT
+        sentence = f"The cited piece describes this part of the paper [{match.group(1)}]. "
+        return sentence * max(1, int(self.s["answer_tokens"] / (len(sentence.split()) * 1.33)))
 
     async def stream(self, body, prompt):
         self.inflight += 1
@@ -141,13 +158,14 @@ class StandIn:
             for _ in range(tokens // 8):
                 await clock.sleep(8 * self.rng.choice(self.token_ms) / 1000)
                 yield chunk({"reasoning": "thinking " * 8})
-            words = self.reply_words(body)
-            for i in range(0, len(words), 6):
-                if i and self.rng.random() < self.s["stall_rate"] / max(1, len(words) // 6):
+            text = self.reply_text(body)
+            pieces = [text[i:i + 24] for i in range(0, len(text), 24)]  # ~6 tokens each
+            for i, part in enumerate(pieces):
+                if i and self.rng.random() < self.s["stall_rate"] / len(pieces):
                     await clock.sleep(self.s["stall_s"])  # INJECTED stall mid-stream
                 await clock.sleep(6 * self.rng.choice(self.token_ms) / 1000)
-                yield chunk({"content": " ".join(words[i:i + 6]) + " "})
-            out = tokens + int(len(words) * config.TOKENS_PER_WORD)
+                yield chunk({"content": part})
+            out = tokens + len(text) // 4  # ~4 characters per token
             self.limits["tpm"].take(out)
             self.limits["tpd"].take(out)
             usage = {"prompt_tokens": prompt, "completion_tokens": out,
