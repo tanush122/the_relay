@@ -17,15 +17,14 @@ first visible token, and its reasoning tokens, are kept in the trace. On Groq th
 small: the first real answer's first visible token came at 1,066 ms, its last at 1,077 ms.
 """
 
+import asyncio
 import re
-import time
 import uuid
-from datetime import datetime, timezone
 
 import config
 from library import search
 from library.pieces import cite_label
-from relay import llm
+from relay import clock, llm
 
 NOT_RETRIEVED = "NOT AMONG RETRIEVED PIECES"
 NOT_A_PIECE_ID = "NOT A PIECE ID (citation could not be parsed)"
@@ -56,15 +55,15 @@ def keywords(question):
     return " ".join(w for w in re.findall(r"\w+", question) if w.lower() not in STOPWORDS)
 
 
-def retrieve_and_decide(index, question, papers):
+def retrieve_and_decide(index, question, papers, requery=True):
     """(pieces or None if still weak, attempts). At most MAX_REQUERIES re-queries."""
     query, scope, attempts = question, papers, []
-    for _ in range(config.MAX_REQUERIES + 1):
-        start = time.perf_counter()
+    for _ in range(config.MAX_REQUERIES + 1 if requery else 1):
+        start = clock.now()
         results, strength = search.retrieve(index, query, scope)
         attempts.append({"query": query, "papers": sorted(scope), "strength": round(strength, 4),
                          "piece_ids": [p["piece_id"] for p, _ in results],
-                         "ms": round((time.perf_counter() - start) * 1000, 2)})
+                         "ms": clock.ms_since(start)})
         if strength >= config.MIN_STRENGTH:
             return [p for p, _ in results], attempts
         if scope:
@@ -80,15 +79,35 @@ def build_messages(question, pieces):
             {"role": "user", "content": f"{numbered}\n\nQuestion: {question}"}]
 
 
-def max_tokens():
-    return config.ANSWER_MAX_TOKENS + config.REASONING_HEADROOM_TOKENS
+async def retrieve_tool(index, question, papers, requery=True):
+    """The retrieve step as a tool call with its own timeout: retried once, then raises.
+
+    Retrieval is local and fast; INJECT_RETRIEVE_DELAY_S simulates a slow tool (injected).
+    """
+    for _ in range(2):
+        try:
+            return await asyncio.wait_for(
+                _retrieve(index, question, papers, requery),
+                config.RETRIEVE_TIMEOUT_S * config.TIME_SCALE)
+        except asyncio.TimeoutError:
+            continue
+    raise TimeoutError("the library search timed out twice")
 
 
-def fit_to_ceiling(question, pieces):
+async def _retrieve(index, question, papers, requery):
+    await clock.sleep(config.INJECT_RETRIEVE_DELAY_S)
+    return retrieve_and_decide(index, question, papers, requery)
+
+
+def max_tokens(level="normal"):
+    return config.LEVELS[level]["answer_max_tokens"] + config.REASONING_HEADROOM_TOKENS
+
+
+def fit_to_ceiling(question, pieces, level="normal"):
     """(pieces, messages, estimate): drop the lowest-ranked pieces until under the ceiling."""
     while True:
         messages = build_messages(question, pieces)
-        estimate = llm.estimate_tokens(" ".join(m["content"] for m in messages)) + max_tokens()
+        estimate = llm.estimate_tokens(" ".join(m["content"] for m in messages)) + max_tokens(level)
         if estimate <= config.REQUEST_TOKEN_CEILING or len(pieces) == 1:
             return pieces, messages, estimate
         pieces = pieces[:-1]
@@ -176,7 +195,7 @@ class Release:
 
 
 def elapsed_ms(start):
-    return round((time.perf_counter() - start) * 1000, 2)
+    return clock.ms_since(start)
 
 
 def status_of(record):
@@ -192,17 +211,36 @@ def status_of(record):
 
 def new_result(question, setting):
     return {"request_id": uuid.uuid4().hex, "question": question, "setting": setting,
-            "start_time": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            "start_time": clock.stamp(),
             "first_token_ms": None, "total_ms": None, "status": "ok", "retries": 0,
             "tokens_in": 0, "tokens_out": 0, "reasoning_tokens": 0, "outcome": None,
-            "reply": "", "citations": [], "attempts": [], "pieces": [], "check": "",
-            "estimate": 0, "model": None, "model_record": None}
+            "level": "normal", "reply": "", "citations": [], "attempts": [], "pieces": [],
+            "check": "", "estimate": 0, "model": None, "model_record": None, "spans": []}
 
 
-async def answer(question, index, client, api_key, base_url=None, show=lambda text: None):
-    """Run the five steps for one question; return a result dict (see new_result)."""
-    start = time.perf_counter()  # arrival: every time below is measured from here
+def day_gone_reply(pieces, back_in_s):
+    """The 3pm reply: no model call, the best passages quoted as they are, and when it ends."""
+    quoted = "\n\n".join(f"[{cite_label(p)}]\n{p['text']}" for p in pieces)
+    return (f"Generated answers are paused: today's model budget is used up. They return in "
+            f"about {back_in_s / 60:.0f} minutes. Here are the most relevant passages from the "
+            f"papers, quoted as they are, without a generated answer:\n\n{quoted}")
+
+
+async def answer(question, index, client, api_key, base_url=None, show=lambda text: None,
+                 gateway=None):
+    """Run the five steps for one question; return a result dict (see new_result).
+
+    With a gateway (load runs), the model call is admitted, queued, retried and ladder-
+    levelled by it; without one (a single ask, the evaluation) the call goes straight out.
+    """
+    start = clock.now()  # arrival: every time below is measured from here
+    deadline = start + config.GIVE_UP_MS / 1000
     result = new_result(question, index["setting"])
+    spans = result["spans"]
+
+    def span(name, began, **extra):
+        spans.append({"name": name, "start_ms": round((began - start) * 1000, 2),
+                      "end_ms": elapsed_ms(start), **extra})
 
     def finish(outcome, reply=""):
         if reply:
@@ -214,22 +252,72 @@ async def answer(question, index, client, api_key, base_url=None, show=lambda te
         result["total_ms"] = elapsed_ms(start)
         return result
 
+    level = gateway.level() if gateway else "normal"
+    result["level"] = level
+    key = gateway.cache_key(question) if gateway else None
+    if gateway and gateway.cache_on and key in gateway.cache:
+        result.update(model="cache", citations=gateway.cache[key]["citations"])
+        return finish("cached", gateway.cache[key]["reply"])
     try:
         question, papers = understand(question)
     except ValueError as reason:
         result["check"] = str(reason)
         return finish("refused_understand", f"I can't answer that: {reason}.")
-    pieces, result["attempts"] = retrieve_and_decide(index, question, papers)
+    began = clock.now()
+    settings = config.LEVELS["lean" if level == "lean" else "normal"]
+    try:
+        pieces, result["attempts"] = await retrieve_tool(index, question, papers,
+                                                         settings["requery"])
+    except TimeoutError as reason:
+        span("retrieve", began, error=str(reason))
+        result.update(status="timeout", check=str(reason))
+        return finish("refused_tool", "The library search is not responding, so I can't "
+                                      "answer from the papers right now. Please ask again.")
+    span("retrieve", began)
     if pieces is None:
         return finish("refused_retrieval", config.REFUSAL_TEXT)
-    pieces, messages, result["estimate"] = fit_to_ceiling(question, pieces)
+    if level == "day_gone":
+        result["status"] = "rate_limited"
+        return finish("day_gone_passages",
+                      day_gone_reply(pieces[:config.DAY_GONE_PASSAGES], gateway.day_back_in_s()))
+    pieces = pieces[:settings["max_pieces"] or len(pieces)]
+    pieces, messages, result["estimate"] = fit_to_ceiling(question, pieces, level)
     result["pieces"] = [p["piece_id"] for p in pieces]
 
-    release = Release(pieces, show, start)
-    record = await llm.stream_chat(client, config.DRAFT_MODEL, messages, max_tokens(),
-                                   api_key, base_url=base_url, on_content=release.feed)
-    release.finish()
-    if record["status"] == 200 and not (release.shown or release.failed or release.refused):
+    attempt = 0
+    while True:
+        if gateway:
+            began = clock.now()
+            refused = await gateway.admit(result["estimate"], deadline)
+            span("queue", began)
+            if refused:
+                result["status"] = refused[0]
+                return finish("refused_gateway", f"[{refused[1]}]")
+        release = Release(pieces, show, start)
+        began = clock.now()
+        record = await llm.stream_chat(
+            client, config.DRAFT_MODEL, messages, max_tokens(level), api_key,
+            base_url=base_url, on_content=release.feed,
+            # The first token must also come before the person gives up (the deadline).
+            timeouts=(min(config.FIRST_TOKEN_TIMEOUT_S, max(0.0, deadline - clock.now())),
+                      config.STALL_TIMEOUT_S) if gateway else None)
+        release.finish()
+        span("model", began, attempt=attempt, status=record["status"],
+             first_event_ms=min((t for t in (record["first_reasoning_ms"], record["ttft_ms"]) if t),
+                                default=None), exception=record["exception"])
+        wait = None
+        if gateway:
+            gateway.settle(record, result["estimate"])
+            gateway.calls.append(attempt > 0)
+            wait = gateway.retry_wait(record, attempt, deadline, bool(release.shown))
+        if wait is None:
+            break
+        began = clock.now()
+        await clock.sleep(wait)
+        span("backoff", began)
+        attempt += 1
+    result["retries"] = attempt
+    if record["status"] == 200 and not record["exception"] and not (release.shown or release.failed or release.refused):
         release.failed = "no visible text (reasoning may have used all of max_tokens)"
     usage = record["usage"] or {}
     result.update(
@@ -253,4 +341,6 @@ async def answer(question, index, client, api_key, base_url=None, show=lambda te
     if release.failed:
         return finish("answered_partial", " I could not check the rest against the papers, "
                                           "so I stopped there.")
+    if gateway:  # only a fully checked answer is cached
+        gateway.cache[key] = {"reply": result["reply"], "citations": result["citations"]}
     return finish("answered")

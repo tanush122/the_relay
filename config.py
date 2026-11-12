@@ -165,3 +165,101 @@ DOCUMENTED_LIMITS = {
     "openai/gpt-oss-120b": {"requests_per_day": 1000, "tokens_per_minute": 8000},
     "qwen/qwen3.8-27b": {"requests_per_day": 1000, "tokens_per_minute": 8000},
 }
+
+# --- Time (relay/clock.py) ---
+TIME_SCALE = 1.0  # wall seconds per model second; load runs compress time (0.02 = 50x)
+
+# --- Gateway (relay/gateway.py): the only door to the model ---
+# Limits the gateway plans with, per model. Measured on 10 Nov (run_20261110T133218Z): 30
+# requests/min (429 body), 8,000 tokens/min and 1,000 requests/day (headers). Tokens/day is
+# NOT measured: 200,000 is Groq's documented value. Headers give only requests/day and
+# tokens/minute, so requests/minute and tokens/day are counted locally.
+LIMITS = {"rpm": 30, "tpm": 8000, "rpd": 1000, "tpd": 200000}
+LIMIT_SAFETY = 0.9  # plan with 90% of each limit, so small estimate errors never cause a 429
+# Deadlines (PLAN 3.2, pending Tanush): first token target 2,000 ms median / 5,000 ms p95;
+# a person gives up after GIVE_UP_MS without an answer.
+FIRST_TOKEN_TARGET_MS = 2000
+GIVE_UP_MS = 15000
+QUEUE_MAX = 50
+# "fifo", or "small_first": when less than one answer is affordable this minute, the queued
+# request with the smallest token estimate goes first (Tanush's idea, 12 Nov).
+QUEUE_ORDER = "fifo"
+# Ladder, in answers still affordable this minute (one answer ~2,400-4,100 of 8,000 tokens):
+# Normal at LEAN_BELOW_ANSWERS or more, Lean below it, Day-gone when the daily budget cannot
+# pay for one more answer. Citations, the check and the refusal rule never change.
+LEAN_BELOW_ANSWERS = 1.5
+LEVELS = {"normal": {"max_pieces": None, "answer_max_tokens": ANSWER_MAX_TOKENS, "requery": True},
+          "lean": {"max_pieces": 2, "answer_max_tokens": 120, "requery": False}}
+DAY_GONE_PASSAGES = 2  # pieces shown verbatim when the daily budget is gone
+CACHE_ON = True  # exact-match cache of finished, checked answers
+# Retries (PLAN 3.5): only these statuses and a first-token timeout; full-jitter backoff;
+# never past the deadline; a retry budget of 10% of recent calls (switch off for the
+# retry-storm run); never after text was shown.
+RETRY_STATUSES = {429, 500, 502, 503}
+RETRY_MAX = 2
+RETRY_BASE_S = 0.5
+RETRY_BUDGET = 0.10  # None = no budget (retry-storm comparison)
+RETRY_WINDOW = 100  # the budget counts the last this-many model calls
+# Timeouts from the probe: the first streamed event came by 2,001 ms at the most (p99, n=50,
+# tiny prompts; a 2,365-token prompt took 1,063 ms) and chunks after it arrived within 34 ms.
+FIRST_TOKEN_TIMEOUT_S = 4.0
+STALL_TIMEOUT_S = 1.0
+# The retrieve tool gets its own timeout; on timeout it is retried once, then the person is
+# told honestly that the library search failed (never an answer without passages).
+RETRIEVE_TIMEOUT_S = 1.0
+INJECT_RETRIEVE_DELAY_S = 0.0  # INJECTED fault for the tool-timeout scenario (0 = off)
+
+# --- Stand-in model service (relay/standin.py) ---
+# Timings are resampled from the real probe (STANDIN_PROBE_RUN). Everything marked
+# INJECTED or ASSUMED is not measured and is labelled as such in the write-up.
+STANDIN_PROBE_RUN = PROBE_DIR / "run_20261110T133218Z"
+STANDIN = {
+    "limits": dict(LIMITS),  # what the stand-in enforces (scenarios halve or shrink these)
+    # The one large-prompt real request (2,365 prompt tokens) reached its first event 561 ms
+    # later than the tiny-prompt median: about 0.24 ms per prompt token (n=1, weak).
+    # Recalibrate from the evaluation traces once they exist.
+    "ms_per_prompt_token": 0.24,
+    "prompt_token_ratio": 0.97,  # Groq counted 2,365 where our estimate said 2,427 (n=1)
+    "reasoning_tokens": 37, "answer_tokens": 35,  # the first real answer (n=1)
+    "slowdown_above_inflight": 8,  # ASSUMED: no slowdown was measured up to 8 at once
+    "slowdown_per_extra": 0.05,  # ASSUMED: +5% latency per request in flight above that
+    "straggler_rate": 0.0, "straggler_factor": 3.0,  # INJECTED slow successes (0 = off)
+    "fail_rate": 0.0,  # INJECTED 503s (0 = off)
+    "stall_rate": 0.0, "stall_s": 2.0,  # INJECTED mid-stream stalls (0 = off)
+    "seed": 7,
+}
+
+# --- Load runs (relay/loadgen.py) against the stand-in ---
+# Arrivals are a STATED process, not a replayed public trace (no trace's licence could be
+# confirmed for this use): Poisson arrivals at rate_per_min, plus an optional burst of
+# `count` extra arrivals spread evenly over `over_s` seconds starting at `at_s`. Seeded.
+# Capacity for reference: 8,000 tokens a minute / ~3,000 per answer = ~2.7 answers a minute.
+LOAD_TIME_SCALE = 0.02  # 50x compression (see relay/clock.py for what that distorts)
+LOAD_SETTING = "C"
+# At Groq's documented 200,000 tokens a day, two answers a minute use up the day in about
+# 35 minutes: the daily limit binds long before the per-minute one. So the per-minute
+# scenarios lift the daily limits (stated in the write-up) and only day_exhausted keeps them.
+NO_DAY_LIMIT = {**LIMITS, "rpd": 10**9, "tpd": 10**12}
+# The exact-match cache is switched off in the load scenarios: with a pool of 18 questions
+# almost every request would be a cache hit and the limits would never be exercised. Its
+# effect is shown once, in burst_cached (incident bursts repeat the same few questions).
+NO_CACHE = {"cache_on": False}
+SCENARIOS = {
+    "steady": {"rate_per_min": 2.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+               "gateway": NO_CACHE},
+    "burst": {"rate_per_min": 1.5, "requests": 1000, "limits": NO_DAY_LIMIT, "gateway": NO_CACHE,
+              "burst": {"at_s": 1800, "count": 60, "over_s": 30}},
+    "burst_cached": {"rate_per_min": 1.5, "requests": 1000, "limits": NO_DAY_LIMIT,
+                     "burst": {"at_s": 1800, "count": 60, "over_s": 30}},
+    "overload": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+                 "gateway": NO_CACHE},
+    "overload_no_retry_budget": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+                                 "gateway": {**NO_CACHE, "retry_budget": None}},
+    "overload_small_first": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+                             "gateway": {**NO_CACHE, "queue_order": "small_first"}},
+    # The stand-in's per-minute limits halve mid-run; the gateway is not told.
+    "limit_halved": {"rate_per_min": 2.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+                     "gateway": NO_CACHE, "halve_at_s": 15000},
+    "day_exhausted": {"rate_per_min": 2.0, "requests": 300, "limits": LIMITS,
+                      "gateway": NO_CACHE},
+}

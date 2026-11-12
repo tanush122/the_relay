@@ -12,10 +12,10 @@ The real key is only ever sent to https://api.groq.com (key_for): any other base
 a dummy key, so a typo, the test fake or the phase-3 stand-in never receives it.
 """
 
+import asyncio
 import json
 import os
 import re
-import time
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import httpx
 
 import config
+from relay import clock
 
 KEY_PATTERN = re.compile(r"gsk_[A-Za-z0-9]+")
 ORG_PATTERN = re.compile(r"org_[A-Za-z0-9]+")  # Groq account id seen in 429 bodies
@@ -111,9 +112,11 @@ def check_spend(estimate, confirm, cap, allow_over_cap=False):
               f"spending more than {cap}")
 
 
-def make_client():
+def make_client(transport=None):
+    """An httpx client; `transport` plugs in the in-process stand-in (relay/standin.py)."""
     return httpx.AsyncClient(
-        timeout=httpx.Timeout(config.READ_TIMEOUT_S, connect=config.CONNECT_TIMEOUT_S))
+        timeout=httpx.Timeout(config.READ_TIMEOUT_S, connect=config.CONNECT_TIMEOUT_S),
+        transport=transport)
 
 
 def _now():
@@ -121,7 +124,7 @@ def _now():
 
 
 def _ms(start):
-    return round((time.perf_counter() - start) * 1000, 2)
+    return clock.ms_since(start)
 
 
 async def list_models(client, api_key, base_url=None):
@@ -129,7 +132,7 @@ async def list_models(client, api_key, base_url=None):
     url = f"{base_url or config.BASE_URL}/models"
     record = {"url": url, "sent_at": _now(), "status": None, "headers": {}, "ids": [],
               "error_body": None, "exception": None}
-    start = time.perf_counter()
+    start = clock.now()
     try:
         response = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
         record["status"] = response.status_code
@@ -144,8 +147,30 @@ async def list_models(client, api_key, base_url=None):
     return record
 
 
+class FirstTokenTimeout(Exception):
+    """No reasoning or content arrived within the first-token timeout."""
+
+
+class StallTimeout(Exception):
+    """The stream went quiet between chunks for longer than the stall timeout."""
+
+
+async def _lines(response, record, timeouts):
+    """The stream's lines, enforcing (first_token_s, stall_s) in model time when given."""
+    lines = response.aiter_lines()
+    while True:
+        waiting_first = record["first_reasoning_ms"] is None and record["ttft_ms"] is None
+        limit = timeouts[0 if waiting_first else 1] if timeouts else None
+        try:
+            yield await asyncio.wait_for(anext(lines), limit and limit * config.TIME_SCALE)
+        except StopAsyncIteration:
+            return
+        except asyncio.TimeoutError:
+            raise (FirstTokenTimeout if waiting_first else StallTimeout)(f"after {limit} s") from None
+
+
 async def stream_chat(client, model, messages, max_tokens, api_key, base_url=None,
-                      extra=None, on_content=None, tag=None, trace_path=None):
+                      extra=None, on_content=None, tag=None, trace_path=None, timeouts=None):
     """One streamed chat completion; returns (and optionally traces) everything observed.
 
     TTFT definition: from just before the request is handed to httpx until the first
@@ -168,7 +193,7 @@ async def stream_chat(client, model, messages, max_tokens, api_key, base_url=Non
         if event == "connection.connect_tcp.started":
             record["new_connection"] = True
 
-    start = time.perf_counter()
+    start = clock.now()
     try:
         async with client.stream("POST", url, json=body,
                                  headers={"Authorization": f"Bearer {api_key}"},
@@ -180,7 +205,7 @@ async def stream_chat(client, model, messages, max_tokens, api_key, base_url=Non
             if response.status_code != 200:
                 record["error_body"] = redact((await response.aread()).decode(errors="replace"))
             else:
-                async for line in response.aiter_lines():
+                async for line in _lines(response, record, timeouts):
                     if not line.startswith("data:"):
                         continue
                     payload = line[len("data:"):].strip()  # "data:[DONE]" is valid SSE too
