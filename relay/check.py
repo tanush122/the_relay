@@ -65,8 +65,9 @@ def claims(text):
     return " ".join(text.split())
 
 
-def values(text):
-    """[(written, value, decimals)] for every number that is a claim."""
+def values(text, words=True):
+    """[(written, value, decimals, suffix)] for every number in the text. Number words
+    ("eight") count as evidence but not as claims: "the three papers" is ordinary language."""
     text = UNIT_PREFIX.sub(lambda m: m.group(1) + " " + m.group(2) + " ", text)
     text = REFERENCE.sub(" ", text.translate(SUPERSCRIPT).replace("−", "-"))
     found = []
@@ -79,7 +80,7 @@ def values(text):
             value *= 10 ** int(exponent.replace(" ", ""))
         decimals = len(plain.split(".")[1]) if "." in plain else 0
         found.append((m.group(0).strip(), value, decimals, suffix))
-    for word in re.findall(r"(?i)\b(" + "|".join(WORDS) + r")\b", text):
+    for word in re.findall(r"(?i)\b(" + "|".join(WORDS) + r")\b", text) if words else []:
         found.append((word, float(WORDS[word.lower()]), 0, None))
     return found
 
@@ -124,7 +125,7 @@ def numbers_problem(paragraph, evidence_text):
     """("", derived numbers) when every number is supported, else (reason, derived)."""
     evidence = values(evidence_text)
     missing, derived = [], []
-    for item in values(claims(paragraph)):
+    for item in values(claims(paragraph), words=False):
         status = number_status(item, evidence)
         if status is None:
             missing.append(item[0])

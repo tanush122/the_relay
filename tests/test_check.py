@@ -37,7 +37,8 @@ def test_derived_numbers_are_marked():
 
 
 def test_word_numbers():
-    assert check.values("eight codebooks")[0][1] == 8
+    assert check.values("eight codebooks")[0][1] == 8  # as evidence
+    assert check.numbers_problem("The three papers each use 8 codebooks.", "eight codebooks")[0] == ""
 
 
 def test_citations_in_any_style():

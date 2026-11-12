@@ -63,9 +63,9 @@ def reset_seconds(text):
     return sum(float(n) * scale[unit] for n, unit in parts)
 
 
-async def run(questions, index, api_key, cap, base_url=None, sheet_path=None):
+async def run(questions, index, api_key, cap, base_url=None, sheet_path=None, scenario=None):
     """Ask every question once; return (results, spent). Stops before passing the cap."""
-    scenario = f"eval-{index['setting']}"
+    scenario = scenario or f"eval-{index['setting']}"
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     sheet_path = sheet_path or config.GRADING_DIR / f"{scenario}_{stamp}.csv"
     sheet_path.parent.mkdir(parents=True, exist_ok=True)
