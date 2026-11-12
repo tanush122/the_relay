@@ -274,6 +274,9 @@ STANDIN = {
     "seed": 7,
 }
 
+# Table 3 reads only evaluation runs of the final system (scenario names starting with this).
+TABLE3_PREFIX = "eval-final"
+
 # --- Load runs (relay/loadgen.py) against the stand-in ---
 # Arrivals are a STATED process, not a replayed public trace (no trace's licence could be
 # confirmed for this use): Poisson arrivals at rate_per_min, plus an optional burst of

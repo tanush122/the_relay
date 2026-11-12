@@ -28,7 +28,7 @@ def paths(monkeypatch, tmp_path):
     return tmp_path
 
 
-def row(i, scenario="eval-A", start="2026-11-11T10:00:00.000+00:00", first="100", total="500",
+def row(i, scenario="eval-final-A", start="2026-11-11T10:00:00.000+00:00", first="100", total="500",
         status="ok", tokens=("90", "10"), grade="", setting="A"):
     return {"request_id": f"r{i}", "scenario": scenario, "source": "stand-in",
             "start_time": start, "first_token_ms": first, "total_ms": total, "status": status,
@@ -81,11 +81,11 @@ def test_peak_queue_from_arrival_and_total():
 
 def test_tables_from_rows():
     rows = [row(1, grade="correct"), row(2, grade="wrong", first="300", total="900"),
-            row(3, scenario="eval-B", first="", tokens=("0", "0"), grade="refused_correctly",
+            row(3, scenario="eval-final-B", first="", tokens=("0", "0"), grade="refused_correctly",
                 setting="B"),
             row(4, scenario="steady", status="rate_limited", first="", tokens=("0", "0"))]
     t2a, t2b, t3 = report.table_2a(rows), report.table_2b(rows), report.table_3(rows)
-    assert "| eval-A | stand-in | 2 | 0.9 | not measured | 100 / 300 / 300 (n=2) |" in t2a
+    assert "| eval-final-A | stand-in | 2 | 0.9 | not measured | 100 / 300 / 300 (n=2) |" in t2a
     assert "| steady | 0.0 | 100.0 | 0.0 | 0.00 | 1 | 0 | not measured (price not set) |" in t2b
     assert "A (fixed 180 tokens, 8 pieces, re-rank no) | 2 | 50.0 | 50.0 | 0.0 | 100 |" in t3
     assert "| B (fixed 600 tokens, 4 pieces, re-rank no) | 1 | 0.0 | 0.0 | 100.0 | 0 |" in t3
