@@ -24,7 +24,7 @@ from collections import deque
 import config
 from relay import clock
 
-POLL_S = 0.05  # how often a queued request checks whether it may go (model time)
+POLL_S = 0.25  # how often a queued request checks whether it may go (model time)
 
 
 class Gateway:
