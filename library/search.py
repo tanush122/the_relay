@@ -92,6 +92,8 @@ def route(index, question):
     config.ROUTE_MARGIN of the closest one is searched. With "names", the old alias list."""
     if config.ROUTING != "meaning":
         return detect_papers(question)
+    if not index.get("centroids"):
+        return set()  # an index without paper centroids: search everything
     q = _embed([question])[0]
     scores = {paper: float(c @ q) for paper, c in index["centroids"].items()}
     best = max(scores.values())

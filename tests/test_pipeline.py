@@ -131,7 +131,8 @@ def test_reasoning_only_is_not_an_answer(fake_groq, stub_retrieval, stub_meaning
     assert result["outcome"] == "refused_check" and "no visible text" in result["check"]
 
 
-def test_weak_retrieval_requeries_once_then_refuses_with_no_model_call(fake_groq, stub_retrieval):
+def test_weak_retrieval_requeries_once_then_refuses_with_no_model_call(fake_groq, stub_retrieval, monkeypatch):
+    monkeypatch.setattr(config, "ROUTING", "names")  # the old name list narrows to Moshi first
     calls, state = stub_retrieval
     state["strength"] = config.MIN_STRENGTH / 2
     result, shown = ask(fake_groq, "What does Moshi say about the weather in Paris?")
@@ -143,7 +144,9 @@ def test_weak_retrieval_requeries_once_then_refuses_with_no_model_call(fake_groq
     assert result["first_token_ms"] is None and result["tokens_in"] == 0
 
 
-def test_requery_uses_keywords_when_no_paper_was_named(fake_groq, stub_retrieval, stub_meaning):
+def test_requery_uses_keywords_when_no_paper_was_named(fake_groq, stub_retrieval, stub_meaning,
+                                                       monkeypatch):
+    monkeypatch.setattr(config, "REQUERY", "keywords")
     calls, state = stub_retrieval
     state["strength"] = 0.0
     ask(fake_groq, "What is the weather like?")
@@ -178,3 +181,13 @@ def test_no_groq_dependency_in_search():  # moved here from test_retrieval (LO-0
     source = (config.ROOT / "library" / "search.py").read_text()
     imports = [line for line in source.splitlines() if re.match(r"\s*(from|import)\s", line)]
     assert not any("relay" in line.lower() or "groq" in line.lower() for line in imports)
+
+
+def test_requery_is_rewritten_from_what_the_first_search_found(fake_groq, stub_retrieval,
+                                                                 stub_meaning):
+    calls, state = stub_retrieval
+    state["strength"] = 0.0
+    ask(fake_groq, "How wide is the inner layer?")
+    # Retried once, with the section titles of the first search's best pieces added.
+    assert calls[1][0] == ("How wide is the inner layer? Position-wise Feed-Forward Networks "
+                           "Architecture")
