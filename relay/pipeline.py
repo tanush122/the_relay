@@ -127,6 +127,7 @@ class Release:
         self.buffer, self.done = "", 0
         self.shown, self.withheld, self.gaps, self.first_ms = [], [], [], None
         self.pending = []  # uncited paragraphs waiting for a citation that may follow
+        self.events = []  # (ms since arrival, "shown" | "gap" | "withheld") per paragraph
 
     def feed(self, text):
         self.buffer += text
@@ -143,9 +144,11 @@ class Release:
         self.withheld += ["no citation"] * len(self.pending)
         self.pending = []
 
-    def _say(self, text):
+    def _say(self, text, kind="shown"):
+        now = elapsed_ms(self.start)
+        self.events.append((now, kind))
         if self.first_ms is None:
-            self.first_ms = elapsed_ms(self.start)
+            self.first_ms = now  # exactly when the first checked paragraph is shown
         self.show(text + "\n\n")
 
     def _release(self, block):
@@ -153,7 +156,7 @@ class Release:
         claims = [x for x in sentences if not check.says_not_covered(x)]
         if not claims:
             self.gaps.append(block)
-            self._say(block)
+            self._say(block, "gap")
             return
         ids = check.cited_ids(" ".join(claims))
         if not ids:
@@ -169,6 +172,7 @@ class Release:
                 self._say(earlier)
             else:
                 self.withheld.append(verdict["reason"])
+                self.events.append((elapsed_ms(self.start), "withheld"))
 
 
 def elapsed_ms(start):
@@ -303,6 +307,7 @@ async def answer(question, index, client, api_key, base_url=None, show=lambda te
         tokens_in=usage.get("prompt_tokens", 0), tokens_out=usage.get("completion_tokens", 0),
         reasoning_tokens=(usage.get("completion_tokens_details") or {}).get("reasoning_tokens", 0),
         reply="\n\n".join(release.shown + release.gaps), check="; ".join(release.withheld),
+        release_ms=release.events,
         citations=list(dict.fromkeys(label for block in release.shown
                                      for label in citation_labels(block, pieces))),
         model_record={k: record[k] for k in ("status", "headers", "ttft_ms", "first_reasoning_ms",
