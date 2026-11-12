@@ -19,6 +19,12 @@ gaps:
       - "Either make setting B retrieve the H-Net ratio-loss fact (and drop the xfail), or accept the miss as a recorded Table 3 finding via an override in this file and untick/annotate LIB-05"
 ---
 
+> **Update 12 Nov (after verification):** the B miss moved. The phase-2 fix for review ME-01
+> (pieces scored by their best 150-word window) made setting B find H-Net's ratio loss and
+> miss Moshi's 12.5 Hz frame rate instead; the strict xfail is now `test_known_fact_retrieved[B-moshi]`.
+> Tanush accepted B's miss as a Table 3 finding (10 Nov); the moved miss awaits his confirmation.
+> The text below is the report as written on 10 Nov.
+
 # Phase 1: Foundations and probe Verification Report
 
 **Phase Goal:** The real Groq service's limits and latency are measured from raw responses, and one real question gets a correctly cited, streamed answer from the three papers at their exact versions.

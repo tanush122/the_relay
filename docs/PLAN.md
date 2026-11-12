@@ -67,7 +67,7 @@ The sizes are starting points. The probe and the first runs may move them.
 
 **2.6 Evaluation.** You write at least 18 questions with an answer key: about 10 answerable from prose, 3 whose answer lives in a table, 2 that span or confuse two papers, and 3 the papers do not answer. Each is graded by hand as correct, wrong, refused\_correctly or refused\_wrongly. Runs are 18 questions x 3 settings = 54 real answers, which fits the token budget only if spread over two days.
 
-**Model choice.** One model for drafting, chosen after the probe from what your limits page actually offers. A second, smaller model is used only as a rung on the degradation ladder, and its quality is measured on the same questions so "weaker answer" is a number.
+**Model choice.** One model for drafting, chosen after the probe from what your limits page actually offers. (Revised 10 Nov: no second, smaller model; the Lean level is the weaker answer.)
 
 ## 3. System design for speed and reliability
 
@@ -81,15 +81,15 @@ The gateway makes four decisions for every request, in this order: can we afford
 
 **3.4 Degradation ladder.** The gateway picks a level from how much budget remains:
 
-| Level | Trigger (proposed) | What changes | What never changes |
+| Level | Trigger (as built, 12 Nov) | What changes | What never changes |
 | --- | --- | --- | --- |
-| 0. Normal | Over 50% of the minute's tokens left | Setting C, 4 pieces, 250 output tokens | Citations, check, refusal rule |
-| 1. Lean | 20 to 50% left | 3 pieces, 150 output tokens, no query rewrite | Same |
-| 2. Minimal | Under 20% left | 2 pieces, smaller model if it has its own budget | Same |
-| 3. Queue only | Minute budget empty | Wait for refill if the deadline allows, otherwise refuse | Same |
-| 4. Day gone | Daily budget empty | Cached answers, or the most relevant cited passages shown as they are with no model call, plus a clear message saying when generated answers return | Same |
+| Normal | At least 1.5 answers still affordable this minute | Chosen setting, its pieces, 250 visible output tokens | Citations, check, refusal rule |
+| Lean | Fewer than 1.5 answers affordable this minute | 2 pieces, 120 visible output tokens, no re-query | Same |
+| Day-gone | The daily budget cannot pay for one more answer | No model call: cached answer, or the 2 best passages quoted verbatim, plus when generated answers return | Same |
 
-Level 4 is the answer to "at 3pm the daily budget is gone". A small reserve of the daily budget is held back so the last hour degrades instead of falling off a cliff.
+Waiting for the minute to refill is queue behaviour, not a level (revision 1). No smaller-model rung.
+
+Day-gone is the answer to "at 3pm the daily budget is gone". A small reserve of the daily budget is held back so the last hour degrades instead of falling off a cliff.
 
 **3.5 Retries.** Retry only 429 (after the `retry-after` value), 500, 502, 503 and first-token timeouts. Exponential backoff with full jitter, at most 2 retries, never past the deadline, and a retry budget of 10% of recent calls. No retry once tokens have been shown to the user. The "retry made it worse" case is produced on purpose: the same overload run with the retry budget switched off.
 
@@ -118,7 +118,7 @@ Reviewers recompute the tables from results.csv before reading anything else, so
 | Burst | Stand-in | Slice of a real traffic trace with a spike | Queue growth, the ladder engaging, recovery time |
 | Sustained overload | Stand-in | 2 to 3 times capacity for several minutes | Fast refusals instead of universal timeouts |
 | Per-minute limit halved | Stand-in | Steady load, limit cut mid-run | Detection from headers and adaptation without a 429 storm |
-| Daily budget exhausted | Stand-in | Budget runs out mid-run | Level 4 behaviour and what the person sees |
+| Daily budget exhausted | Stand-in | Budget runs out mid-run | Day-gone behaviour and what the person sees |
 | Retry storm (comparison) | Stand-in | Overload with retry budget off, then on | The case where retrying made things worse |
 | Queue order (comparison) | Stand-in | Overload, oldest-first versus newest-first | A candidate "number you could not have guessed" |
 
