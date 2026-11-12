@@ -100,7 +100,8 @@ async def _retrieve(index, question, papers, requery):
     return retrieve_and_decide(index, question, papers, requery)
 
 
-def max_tokens(level="normal"):
+def max_tokens(level="normal", pieces=()):
+    """Visible answer budget for the level plus headroom for the model's hidden reasoning."""
     return config.LEVELS[level]["answer_max_tokens"] + config.REASONING_HEADROOM_TOKENS
 
 
@@ -108,7 +109,8 @@ def fit_to_ceiling(question, pieces, level="normal"):
     """(pieces, messages, estimate): drop the lowest-ranked pieces until under the ceiling."""
     while True:
         messages = build_messages(question, pieces)
-        estimate = llm.estimate_tokens(" ".join(m["content"] for m in messages)) + max_tokens(level)
+        estimate = (llm.estimate_tokens(" ".join(m["content"] for m in messages))
+                    + max_tokens(level, pieces))
         if estimate <= config.REQUEST_TOKEN_CEILING or len(pieces) == 1:
             return pieces, messages, estimate
         pieces = pieces[:-1]
@@ -288,7 +290,7 @@ async def answer(question, index, client, api_key, base_url=None, show=lambda te
         release = Release(pieces, show, start)
         began = clock.now()
         record = await llm.stream_chat(
-            client, config.DRAFT_MODEL, messages, max_tokens(level), api_key,
+            client, config.DRAFT_MODEL, messages, max_tokens(level, pieces), api_key,
             base_url=base_url, on_content=release.feed,
             # The first token must also come before the person gives up (the deadline).
             timeouts=(min(config.FIRST_TOKEN_TIMEOUT_S, max(0.0, deadline - clock.now())),

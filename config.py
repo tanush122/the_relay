@@ -126,7 +126,11 @@ CHECK_FAILED_TEXT = ("I could not check an answer against the papers, so I will 
 # Draft: gpt-oss reasons before its visible text (probe, 10 Nov: ~6 reasoning tokens on a
 # tiny prompt, 37 on the first real answer; at max_tokens 16, 33 of 50 replies ended before
 # any visible text). max_tokens counts reasoning too, so headroom is added on top.
-ANSWER_MAX_TOKENS = 250  # visible answer budget
+# Visible answer budget. 250 cut off 11 of 36 real setting-C replies (12 Nov) mid-formula or
+# mid-list; whether a reply runs long was not predictable from its pieces (tables or formula
+# density marked 5 of 11 cut-offs and 13 of 25 complete replies), so the cap is raised for
+# all. It is a cap: real spend grows only for replies that would have been cut off.
+ANSWER_MAX_TOKENS = 450
 REASONING_HEADROOM_TOKENS = 150
 # Per-request ceiling (estimated prompt + max_tokens): the lowest pieces are dropped to fit.
 # 6,000 keeps one request well inside the 8,000 tokens a minute and leaves every setting
