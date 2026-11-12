@@ -14,6 +14,7 @@ ask and eval spend real Groq tokens, so they print the estimate first and refuse
 
 import argparse
 import asyncio
+import json
 import sys
 from pathlib import Path
 
@@ -100,11 +101,20 @@ def calibrate():
         first, total = asyncio.run(loadgen.calibrate(scale=scale))
         rows.append([f"Stand-in, same request, time compressed x{1 / scale:.0f}",
                      report.spread(first, (50, 95, 99)), report.spread(total, (50, 95, 99))])
+    real = [json.loads(line) for line in config.TRACE_PATH.read_text().splitlines()]
+    real = [t["model_record"] for t in real if t["scenario"].startswith("eval-")]
+    rows.append(["Real Groq evaluation replies (prompts 1,601-3,103 tokens)",
+                 report.spread([min(t for t in (r["first_reasoning_ms"], r["ttft_ms"]) if t)
+                                for r in real], (50, 95, 99)),
+                 report.spread([r["total_ms"] for r in real], (50, 95, 99))])
+    first, total = asyncio.run(loadgen.calibrate(prompt_words=1500))
+    rows.append([f"Stand-in, ~2,000-token prompt, x{1 / config.LOAD_TIME_SCALE:.0f}",
+                 report.spread(first, (50, 95, 99)), report.spread(total, (50, 95, 99))])
     text = report.table(["Source", "First event p50 / p95 / p99 (ms)",
                          "Total p50 / p95 / p99 (ms)"], rows)
-    note = ("\nThe stand-in resamples the first-event times of these same 50 spaced requests. "
-            "What it adds is its own Python overhead, multiplied by the time compression, "
-            "plus 0.24 ms per prompt token. Load scenarios run at "
+    note = ("\nSmall prompts: the stand-in resamples the first-event times of the probe's 50 "
+            "spaced requests; large prompts: those of the 54 real evaluation replies. What it adds "
+            "is its own Python overhead, multiplied by the time compression. Load scenarios run at "
             f"x{1 / config.LOAD_TIME_SCALE:.0f}. The p95 gap is the probe's small sample, "
             "not the stand-in: 2 of its 50 values are 1.8-2.0 s, so its own p95 (752 ms) sits "
             "just below them and its p96 is already 1,819 ms; 200 resamples land on them.\n")

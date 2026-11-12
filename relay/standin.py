@@ -5,10 +5,11 @@ x-ratelimit-* headers and a Groq-shaped 429 with retry-after, so the client and 
 run unchanged; only the httpx transport differs (llm.make_client(transport=...)).
 
 Where each behaviour comes from:
-- Time to the first streamed event is resampled from the real probe's 50 spaced requests
-  (config.STANDIN_PROBE_RUN), plus ms_per_prompt_token for longer prompts (n=1, weak).
+- Time to the first streamed event is resampled from real requests of a similar prompt
+  size: the probe's 50 spaced tiny requests, or the 54 real evaluation replies (12 Nov).
 - Time per output token is resampled from Groq's own usage.completion_time figures.
-- Reasoning before the visible answer, and answer length, follow the first real answer.
+- Reasoning before the visible answer, answer length and Groq's prompt-token count follow
+  the medians of the 54 real evaluation replies.
 - Limits refill continuously (clock.Bucket), as Groq's headers showed; they are settings,
   so a scenario can halve the per-minute limit or shrink the daily budget mid-run.
 - ASSUMED: slowdown when more than 8 requests are in flight (none was measured up to 8).
@@ -51,11 +52,26 @@ def probe_samples(run_dir):
     return first, per_token
 
 
+def eval_samples(trace_path):
+    """First-event ms of the real evaluation replies (large prompts), [] if none yet."""
+    if not trace_path.exists():
+        return []
+    first = []
+    for line in trace_path.read_text().splitlines():
+        t = json.loads(line)
+        record = t.get("model_record") or {}
+        events = [x for x in (record.get("first_reasoning_ms"), record.get("ttft_ms")) if x]
+        if t.get("scenario", "").startswith("eval-") and record.get("status") == 200 and events:
+            first.append(min(events))
+    return first
+
+
 class StandIn:
     def __init__(self, **settings):
         self.s = {**config.STANDIN, **settings}
         self.rng = random.Random(self.s["seed"])
         self.first_ms, self.token_ms = probe_samples(config.STANDIN_PROBE_RUN)
+        self.first_ms_large = eval_samples(self.s["eval_traces"]) or self.first_ms
         self.limits = {k: clock.Bucket(v, PERIOD_S[k]) for k, v in self.s["limits"].items()}
         self.inflight = 0
 
@@ -107,7 +123,8 @@ class StandIn:
     async def stream(self, body, prompt):
         self.inflight += 1
         try:
-            first = self.rng.choice(self.first_ms) + self.s["ms_per_prompt_token"] * prompt
+            large = prompt >= self.s["large_prompt_tokens"]
+            first = self.rng.choice(self.first_ms_large if large else self.first_ms)
             extra = max(0, self.inflight - self.s["slowdown_above_inflight"])
             first *= 1 + self.s["slowdown_per_extra"] * extra  # ASSUMED
             if self.rng.random() < self.s["straggler_rate"]:  # INJECTED

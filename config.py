@@ -215,12 +215,16 @@ INJECT_RETRIEVE_DELAY_S = 0.0  # INJECTED fault for the tool-timeout scenario (0
 STANDIN_PROBE_RUN = PROBE_DIR / "run_20261110T133218Z"
 STANDIN = {
     "limits": dict(LIMITS),  # what the stand-in enforces (scenarios halve or shrink these)
-    # The one large-prompt real request (2,365 prompt tokens) reached its first event 561 ms
-    # later than the tiny-prompt median: about 0.24 ms per prompt token (n=1, weak).
-    # Recalibrate from the evaluation traces once they exist.
-    "ms_per_prompt_token": 0.24,
-    "prompt_token_ratio": 0.97,  # Groq counted 2,365 where our estimate said 2,427 (n=1)
-    "reasoning_tokens": 37, "answer_tokens": 35,  # the first real answer (n=1)
+    # First-event time by prompt size, from real data only: prompts under
+    # large_prompt_tokens resample the probe's 50 spaced tiny requests (median 502 ms);
+    # larger ones resample the 54 real evaluation replies of 12 Nov (1,601-3,103 prompt
+    # tokens, median 933 ms). Within that range a straight-line fit explains almost nothing
+    # (first event = 820 ms + 0.117 ms x prompt tokens, r = 0.10, residual sd 569 ms), so
+    # the stand-in draws from the measured spread instead of a fitted slope.
+    "large_prompt_tokens": 1000,
+    "eval_traces": TRACE_PATH,
+    "prompt_token_ratio": 0.713,  # Groq's prompt count / our estimate (median of 54; 0.60-0.89)
+    "reasoning_tokens": 43, "answer_tokens": 170,  # medians of the 54 real replies
     "slowdown_above_inflight": 8,  # ASSUMED: no slowdown was measured up to 8 at once
     "slowdown_per_extra": 0.05,  # ASSUMED: +5% latency per request in flight above that
     "straggler_rate": 0.0, "straggler_factor": 3.0,  # INJECTED slow successes (0 = off)
@@ -253,8 +257,14 @@ SCENARIOS = {
                      "burst": {"at_s": 1800, "count": 60, "over_s": 30}},
     "overload": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
                  "gateway": NO_CACHE},
-    "overload_no_retry_budget": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
-                                 "gateway": {**NO_CACHE, "retry_budget": None}},
+    # Retry storm (heading 6): the same overload, with INJECTED slow successes (20% of calls
+    # take 3x longer, so some pass the first-token timeout after the provider has already
+    # charged the prompt). Retry budget on (10%) vs off: does retrying make things worse?
+    "overload_retry_on": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+                          "gateway": NO_CACHE, "standin": {"straggler_rate": 0.2}},
+    "overload_retry_off": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
+                           "gateway": {**NO_CACHE, "retry_budget": None},
+                           "standin": {"straggler_rate": 0.2}},
     "overload_small_first": {"rate_per_min": 8.0, "requests": 1000, "limits": NO_DAY_LIMIT,
                              "gateway": {**NO_CACHE, "queue_order": "small_first"}},
     # The stand-in's per-minute limits halve mid-run; the gateway is not told.

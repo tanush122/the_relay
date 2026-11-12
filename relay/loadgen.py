@@ -104,14 +104,18 @@ async def run(name, requests=None, results_path=None, trace_path=None, index=Non
     return rows, gate, service, time.perf_counter() - wall
 
 
-async def calibrate(n=200, scale=None, seed=0):
+async def calibrate(n=200, scale=None, seed=0, prompt_words=None):
     """The probe's own tiny request, sent n times one after another to the stand-in, at
     load-run time compression: its first-event and total times next to the probe's."""
     config.TIME_SCALE = scale or config.LOAD_TIME_SCALE
     clock.reset()
-    # The probe's replies were tiny (about 7 reasoning tokens and "ok"), so the stand-in's are too.
-    service = standin.StandIn(seed=seed, limits=dict(config.NO_DAY_LIMIT), reasoning_tokens=8)
-    messages = [{"role": "user", "content": config.PROBE["small_prompt"]}]
+    if prompt_words:  # an evaluation-sized prompt and an evaluation-sized reply
+        service = standin.StandIn(seed=seed, limits={**config.NO_DAY_LIMIT, "tpm": 10**9})
+        content = " ".join(["The papers describe sequence models."] * (prompt_words // 5))
+    else:  # the probe's replies were tiny (about 7 reasoning tokens and "ok")
+        service = standin.StandIn(seed=seed, limits=dict(config.NO_DAY_LIMIT), reasoning_tokens=8)
+        content = config.PROBE["small_prompt"]
+    messages = [{"role": "user", "content": content}]
     first, total = [], []
     try:
         async with llm.make_client(transport=service.transport()) as client:
