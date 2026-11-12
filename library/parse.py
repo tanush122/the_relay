@@ -100,7 +100,11 @@ def _table_text(figure):
     """Caption first, then one line per row with cells joined by " | " (kept whole)."""
     caption = figure.find("figcaption")
     lines = [_clean(caption.get_text(" ")) if caption else "Table"]
-    for row in figure.find_all("tr"):
+    rows = figure.find_all("tr")
+    if not rows:  # side-by-side layout (H-Net Tables 5, 7): the rows sit beside the caption
+        outer = figure.find_parent("figure")
+        rows = outer.find_all("tr") if outer else []
+    for row in rows:
         cells = [_clean(c.get_text(" ")) for c in row.find_all(["td", "th"])]
         if any(cells):
             lines.append(" | ".join(cells))

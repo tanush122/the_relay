@@ -139,3 +139,14 @@ def test_every_section_with_prose_has_a_block(blocks):
             if prose:
                 number, _ = parse._heading(section, None)
                 assert number in numbers or number == "-", (paper["key"], section.get("id"))
+
+
+def test_no_table_loses_its_rows(blocks):
+    # H-Net Tables 5 and 7 sit beside their captions (side-by-side layout); their rows
+    # were lost until 12 Nov. Every table must now carry rows, and HG38's values must exist.
+    for paper, paper_blocks in blocks.items():
+        for b in paper_blocks:
+            if b["kind"] == "table":
+                assert b["text"].count(" | ") >= 2, (paper, b["text"][:60])
+    hnet = " ".join(b["text"] for b in blocks["hnet"] if b["kind"] == "table")
+    assert "2.705" in hnet and "2.722" in hnet
