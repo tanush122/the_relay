@@ -1,6 +1,7 @@
 """Build submission/ in one go: exactly the files to upload, nothing else.
 
-  submission/WRITEUP.pdf               the write-up (tables copied in from results.csv)
+  submission/WRITEUP.pdf               the write-up (2 pages, the brief's limit)
+  submission/RESULTS_TABLES.pdf        Tables 1, 2a, 2b, 3, computed from results.csv
   submission/results.csv               the raw results
   submission/code.zip                  the code at the last commit (git archive: no .env, no caches)
   submission/conversation_history.md   every Claude Code conversation for this project, one file
@@ -89,11 +90,12 @@ def main():
             old.unlink()
     fill_tables.main()
     md = (ROOT / "docs" / "WRITEUP.md").read_text()
-    pages = writeup_pdf.render(md, OUT / "WRITEUP.pdf")
-    prose = md[:md.index("## Appendix")]
-    scratch = OUT / "prose_check.pdf"
-    prose_pages = writeup_pdf.render(prose, scratch)
-    scratch.unlink()
+    cut = md.index("## Appendix")
+    prose_pages = writeup_pdf.render(md[:cut], OUT / "WRITEUP.pdf")
+    tables_md = "# The Relay — results tables\n\n" + md[cut:].split("\n", 1)[1]
+    pages = writeup_pdf.render(tables_md, OUT / "RESULTS_TABLES.pdf")
+    if prose_pages > 2:
+        raise SystemExit(f"STOP: the writing is {prose_pages} pages; the brief allows 2")
     (OUT / "results.csv").write_bytes((ROOT / "data" / "results.csv").read_bytes())
     subprocess.run(["git", "archive", "--format=zip", "-o", str(OUT / "code.zip"), "HEAD"],
                    cwd=ROOT, check=True)
@@ -114,7 +116,7 @@ def main():
             leaks.append(f"{f.name} (.env or cache inside)")
     if leaks:
         raise SystemExit(f"STOP: key or secret file found in {sorted(set(leaks))}; do not upload")
-    print(f"Write-up: {prose_pages} pages of writing, {pages} with the tables")
+    print(f"WRITEUP.pdf: {prose_pages} pages; RESULTS_TABLES.pdf: {pages} pages")
     for f in sorted(OUT.iterdir()):
         print(f"  {f.name}  {f.stat().st_size / 1e6:.1f} MB")
     print("No key found. Upload everything in submission/ as it is.")
