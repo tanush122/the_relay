@@ -20,3 +20,13 @@ carry rate-limit headers, the first at 12:00:22 UTC, the last at 13:52:39 UTC.
   the same rolling 24 h window, about 12,000 tokens are free before ~17:30 IST today.
   This is an inference, not a measurement: Table 1's tokens-per-day row stays at
   "not measured (no 429 at 187,656 tokens in about 2 h)".
+
+## Update after eval-final-C (13 Nov, 03:24-03:29 UTC)
+
+- First response at 03:24:04 UTC: remaining-requests 999 / 1000, reset-requests 1m26.4s;
+  remaining-tokens 5,529 / 8,000. The header's request bucket was full again, while the console
+  still counted 74 calls in 24 h: the console count and the header bucket measure different things.
+- 18 calls, 48,026 tokens, no 429 of any kind. Tokens in the 24 h before 03:29 UTC: 187,656
+  (12 Nov, from 12:00 UTC) + 48,026 = 235,682, all inside one rolling 24 h window. So the
+  "about 12,000 tokens left" inference above was wrong: no daily-limit 429 at 235,682 tokens.
+  Table 1 tokens per day: "not reached at 235,682 tokens in a rolling 24 h (no 429)", low confidence.
