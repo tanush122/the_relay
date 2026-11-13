@@ -278,6 +278,10 @@ STANDIN = {
 # Table 3 reads only the full evaluation runs of the final system, one per setting (not the
 # 2-question eval-final-interrupted run of 12 Nov, kept in results.csv as raw data).
 TABLE3_RUNS = ("eval-final-A", "eval-final-B", "eval-final-C")
+# Re-asks of questions Groq refused with a 429 (Tanush, 13 Nov: "retry ques 1 and 18" of B).
+# In Table 3 a run's rate_limited rows are replaced by its retry run's rows; both stay in
+# results.csv. So B = eval-final-B rows that were not rate-limited + eval-final-B-retry rows.
+TABLE3_RETRIES = {"eval-final-B-retry": "eval-final-B"}
 
 # --- Load runs (relay/loadgen.py) against the stand-in ---
 # Arrivals are a STATED process, not a replayed public trace (no trace's licence could be

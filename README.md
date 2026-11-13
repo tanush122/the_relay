@@ -38,7 +38,7 @@ uv run python scripts/export_history.py                  # conversation history 
 
 Load scenarios (config.SCENARIOS, all on the stand-in): steady, burst, burst_cached, overload,
 overload_small_first, retry_budget_on, retry_budget_off, limit_halved, day_exhausted.
-Table 3 reads only the final evaluation runs (config.TABLE3_RUNS: eval-final-A, -B, -C); the
+Table 3 reads only the final evaluation runs (config.TABLE3_RUNS: eval-final-A, -B, -C); in B, the 2 questions Groq refused with a 429 (Q1 per-minute, Q18 per-day) are replaced by their re-asks in eval-final-B-retry (config.TABLE3_RETRIES); the refused rows stay in results.csv; the
 earlier eval-A/B/C/C2 rows stay in results.csv as the record of how the system got there.
 
 ## The questions file (Tanush writes it)

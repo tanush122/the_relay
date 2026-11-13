@@ -120,7 +120,10 @@ def table_3(rows):
     lines = []
     # Only the final system's runs (Tanush, 12 Nov: grade the latest system); earlier
     # evaluation rows stay in results.csv as the record of how it got there.
-    evaluated = [r for r in rows if r["scenario"] in config.TABLE3_RUNS]
+    retried = set(config.TABLE3_RETRIES.values())
+    evaluated = [r for r in rows if r["scenario"] in config.TABLE3_RETRIES
+                 or (r["scenario"] in config.TABLE3_RUNS
+                     and not (r["scenario"] in retried and r["status"] == "rate_limited"))]
     for name, rs in sorted(groups(evaluated, "retrieval_setting").items()):
         graded = [r for r in rs if r["answer_grade"]]
         grade = {g: sum(r["answer_grade"] == g for r in graded) for g in results.GRADES}
@@ -141,7 +144,8 @@ def table_3_history(rows):
     order = ("correct", "wrong", "refused_correctly", "refused_wrongly")
     lines = []
     earlier = [r for r in rows
-               if r["scenario"].startswith("eval-") and r["scenario"] not in config.TABLE3_RUNS]
+               if r["scenario"].startswith("eval-") and r["scenario"] not in config.TABLE3_RUNS
+               and r["scenario"] not in config.TABLE3_RETRIES]
     for name, rs in groups(earlier, "scenario").items():
         count = {g: sum(r["answer_grade"] == g for r in rs) for g in results.GRADES}
         lines.append([name, rs[0]["retrieval_setting"], len(rs)]
