@@ -30,3 +30,18 @@ carry rate-limit headers, the first at 12:00:22 UTC, the last at 13:52:39 UTC.
   (12 Nov, from 12:00 UTC) + 48,026 = 235,682, all inside one rolling 24 h window. So the
   "about 12,000 tokens left" inference above was wrong: no daily-limit 429 at 235,682 tokens.
   Table 1 tokens per day: "not reached at 235,682 tokens in a rolling 24 h (no 429)", low confidence.
+
+## The daily limit, reached (13 Nov, 03:51:07 UTC, eval-final-B question 18)
+
+Groq's 429 body (organisation id removed): "Rate limit reached for model `openai/gpt-oss-20b` ...
+on tokens per day (TPD): Limit 200000, Used 199263, Requested 3516. Please try again in
+20m0.528s." Headers: retry-after 1201, x-should-retry false, remaining-requests 953 / 1000,
+remaining-tokens 8000 / 8000 (the minute budget was full; only the day was spent).
+Full body and headers: data/traces/traces.jsonl, request of eval-final-B at 03:51:07.
+
+- Tokens per day = 200,000 (high confidence: named in the 429 body).
+- Refill: 199,263 + 3,516 - 200,000 = 2,779 tokens over, ready in 1,201 s = ~8,330 tokens an
+  hour = 200,000 / 24 h. The daily budget is a bucket that refills continuously.
+- That is why no 429 came at 235,682 tokens in 24 h earlier: by then about 8,300 tokens an hour
+  had flowed back in since 12 Nov. Our ledger has 331,195 real tokens from 12 Nov 12:00 UTC to
+  this 429; Groq counted 199,263 in the bucket.

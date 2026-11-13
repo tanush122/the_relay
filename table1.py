@@ -10,6 +10,7 @@ presented as Groq: the draft is headed NOT GROQ and every confidence becomes "no
 """
 
 import json
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -81,6 +82,40 @@ def from_header(records, limit, header, kind, period):
     return row(limit, "; ".join(values), "; ".join(hows), "high" if body_value else "medium")
 
 
+def real_429s():
+    """429s from real evaluation runs (traces.jsonl), as probe-style records: the daily
+    limits were only reached there, never in the lean probe."""
+    if not config.TRACE_PATH.exists():
+        return []
+    out = []
+    for line in config.TRACE_PATH.read_text().splitlines():
+        t = json.loads(line)
+        record = t.get("model_record") or {}
+        if t["scenario"] in config.SCENARIOS or record.get("status") != 429:
+            continue  # stand-in load runs are not the real service
+        out.append({**record, "stage": f"real run {t['scenario']} at {t['start_time'][:19]}Z",
+                    "model": t.get("model"), "limit_kind": llm.limit_kind(record.get("error_body"))})
+    return out
+
+
+USED_IN_BODY = re.compile(r"Limit (\d+), Used (\d+), Requested (\d+)")
+
+
+def daily_refill(errors):
+    """From a TPD 429: tokens over the limit / retry-after = how fast the day refills."""
+    for e in errors:
+        match = USED_IN_BODY.search(e.get("error_body") or "")
+        retry = e.get("headers", {}).get("retry-after")
+        if e.get("limit_kind") == "TPD" and match and retry:
+            limit, used, asked = map(int, match.groups())
+            over = used + asked - limit
+            per_hour = over / float(retry) * 3600
+            return (f"TPD: retry-after {retry} s for {over} tokens over the limit, i.e. a "
+                    f"continuous refill of ~{per_hour:,.0f} tokens/h (limit/24 h = "
+                    f"{limit / 24:,.0f}), not a reset at a fixed time ({e['stage']})")
+    return None
+
+
 def tokens_per_day(records):
     value, how = limit_from_429(records, "TPD")
     if value:
@@ -130,30 +165,32 @@ def on_limit(errors):
 
 
 def recovery(errors, summary):
-    """Per-minute (RPM) recovery only: the lean probe never hit the token limit."""
+    """Per-minute (RPM) recovery from the probe; daily refill from a real TPD 429, if any."""
+    daily = daily_refill(errors)
     seconds = summary.get("recovery_rpm_s")
     if seconds is None:
         return row(ROWS[6], how="no recovery observed; daily reset not measured (phase 4)")
     retry = next((e["headers"].get("retry-after") for e in errors
                   if e.get("limit_kind") == "RPM"), None)
     value = (f"RPM: {seconds} s after a 429 naming RPM (its retry-after: {retry}); "
-             f"TPM: {NOT_MEASURED}; daily reset not measured (phase 4)")
+             f"TPM: {NOT_MEASURED}; " + (daily or "daily reset not measured"))
     how = ("from the arrival of a burst's first 429 to the sending of the first re-admitted "
            f"tiny request; polled every {summary.get('recovery_poll_interval_s')} s, "
            "so the true value is up to one poll earlier")
     return row(ROWS[6], value, how, "medium")  # poll granularity; tiny re-admission only
 
 
-def build_table1(records, summary):
+def build_table1(records, summary, real=()):
     errors = [r for r in records if r.get("status") == 429]
+    real = list(real)
     return [
         per_minute_requests(records),
         from_header(records, ROWS[1], "x-ratelimit-limit-tokens", "TPM", "minute"),
         from_header(records, ROWS[2], "x-ratelimit-limit-requests", "RPD", "day"),
-        tokens_per_day(records),
+        tokens_per_day(records + real),
         in_flight(records),
         on_limit(errors),
-        recovery(errors, summary),
+        recovery(errors + real, summary),
     ]
 
 
@@ -161,7 +198,8 @@ def label_source(rows, summary, run_name):
     """Name the run and host in every row; a non-Groq run gets confidence "none". Returns a banner."""
     host = summary.get("base_url_host") or "unknown host"
     for r in rows:
-        r["How found"] += f" [run {run_name}, host {host}]"
+        if "real run" not in r["How found"]:  # rows from evaluation traces name their run
+            r["How found"] += f" [run {run_name}, host {host}]"
     banner = f"Source: probe run {run_name} against {host}, stopped: {summary.get('stopped_reason')}."
     if host != llm.GROQ_HOST:
         for r in rows:
@@ -187,7 +225,7 @@ def main(argv=None):
         print(render_markdown(build_table1([], {})))
         return
     records, summary = load_run(run_dir)
-    rows = build_table1(records, summary)
+    rows = build_table1(records, summary, real_429s())
     banner = label_source(rows, summary, run_dir.name)
     draft = f"{banner}\n\n{render_markdown(rows)}\n"
     print(draft, end="")

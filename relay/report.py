@@ -135,6 +135,22 @@ def table_3(rows):
                   "First token p50 / p95 (ms)", "Total time p50 / p95 (ms)"], lines)
 
 
+def table_3_history(rows):
+    """Earlier evaluation runs (before the final system), as grade counts: the record of how
+    the system got there. Not part of the brief's Table 3."""
+    order = ("correct", "wrong", "refused_correctly", "refused_wrongly")
+    lines = []
+    earlier = [r for r in rows
+               if r["scenario"].startswith("eval-") and r["scenario"] not in config.TABLE3_RUNS]
+    for name, rs in groups(earlier, "scenario").items():
+        count = {g: sum(r["answer_grade"] == g for r in rs) for g in results.GRADES}
+        lines.append([name, rs[0]["retrieval_setting"], len(rs)]
+                     + [count[g] for g in order]
+                     + [sum(not r["answer_grade"] for r in rs), tokens_per_answer(rs)])
+    return table(["Earlier run", "Setting", "Questions"] + list(order)
+                 + ["Ungraded", "Tokens per answer"], lines)
+
+
 def print_report(path=None):
     path = path or config.RESULTS_PATH
     if not path.exists():
@@ -142,6 +158,7 @@ def print_report(path=None):
         return
     rows = results.read(path)
     for title, build in (("Table 2a: Latency", table_2a), ("Table 2b: Outcomes", table_2b),
-                         ("Table 3: Retrieval settings", table_3)):
+                         ("Table 3: Retrieval settings", table_3),
+                         ("Side table: earlier evaluation runs", table_3_history)):
         print(f"\n{title} (from {path.name}, {len(rows)} rows)\n")
         print(build(rows))
