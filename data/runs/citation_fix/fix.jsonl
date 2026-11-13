@@ -1,0 +1,53 @@
+{"scenario": "eval-final-C", "q": "Why does the Transformer scale dot-product attenti", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-C", "q": "What optimizer parameters, warmup step count, drop", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 2, "cites": 2}
+{"scenario": "eval-final-C", "q": "How does the Mimi neural audio codec convert a 24 ", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-C", "q": "How many total parallel token streams $K$ does Mos", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-C", "q": "In H-Net, how does the routing module compute boun", "saved_outcome": "refused_check", "outcome": "answered_partial", "saved_cites": 0, "cites": 1}
+{"scenario": "eval-final-C", "q": "At the XL (1.3B) scale on FineWeb-Edu, after how m", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 0, "cites": 1}
+{"scenario": "eval-final-C", "q": "How does H-Net make discrete chunking and decompre", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-C", "q": "How does enabling Inner Monologue affect Moshi's s", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-C", "q": "Why does H-Net use Mamba-2 layers for its outer en", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-C", "q": "How does Post-Training Quantization (PTQ) from BF1", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-C", "q": "Compare how \"Encoder\" and \"Decoder\" modules are ar", "saved_outcome": "answered", "outcome": "answered", "saved_cites": 4, "cites": 4}
+{"scenario": "eval-final-C", "q": "How do the three papers address sequence length sc", "saved_outcome": "answered", "outcome": "answered", "saved_cites": 3, "cites": 3}
+{"scenario": "eval-final-C", "q": "Compare the tokenization approaches in all three p", "saved_outcome": "answered", "outcome": "answered", "saved_cites": 3, "cites": 3}
+{"scenario": "eval-final-C", "q": "Compare the optimizer choices, learning rate sched", "saved_outcome": "answered", "outcome": "answered", "saved_cites": 3, "cites": 3}
+{"scenario": "eval-final-C", "q": "In Moshi's safety evaluation, why does AudioSeal s", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-C", "q": "What was the total cloud GPU dollar cost in USD to", "saved_outcome": "refused_model", "outcome": "refused_model", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-C", "q": "How does Moshi's WebRTC network transport layer ha", "saved_outcome": "refused_model", "outcome": "refused_model", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-C", "q": "In the Dynamic Chunking paper, what validation Bit", "saved_outcome": "refused_model", "outcome": "refused_model", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-A", "q": "Why does the Transformer scale dot-product attenti", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-A", "q": "What optimizer parameters, warmup step count, drop", "saved_outcome": "answered", "outcome": "answered", "saved_cites": 2, "cites": 2}
+{"scenario": "eval-final-A", "q": "How does the Mimi neural audio codec convert a 24 ", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-A", "q": "How many total parallel token streams $K$ does Mos", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-A", "q": "In H-Net, how does the routing module compute boun", "saved_outcome": "answered", "outcome": "answered", "saved_cites": 2, "cites": 2}
+{"scenario": "eval-final-A", "q": "At the XL (1.3B) scale on FineWeb-Edu, after how m", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 0, "cites": 1}
+{"scenario": "eval-final-A", "q": "How does H-Net make discrete chunking and decompre", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-A", "q": "How does enabling Inner Monologue affect Moshi's s", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 3, "cites": 3}
+{"scenario": "eval-final-A", "q": "Why does H-Net use Mamba-2 layers for its outer en", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-A", "q": "How does Post-Training Quantization (PTQ) from BF1", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 2, "cites": 2}
+{"scenario": "eval-final-A", "q": "Compare how \"Encoder\" and \"Decoder\" modules are ar", "saved_outcome": "answered", "outcome": "answered", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-A", "q": "How do the three papers address sequence length sc", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 5, "cites": 5}
+{"scenario": "eval-final-A", "q": "Compare the tokenization approaches in all three p", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-A", "q": "Compare the optimizer choices, learning rate sched", "saved_outcome": "answered", "outcome": "answered", "saved_cites": 3, "cites": 3}
+{"scenario": "eval-final-A", "q": "In Moshi's safety evaluation, why does AudioSeal s", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-A", "q": "What was the total cloud GPU dollar cost in USD to", "saved_outcome": "refused_model", "outcome": "refused_model", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-A", "q": "How does Moshi's WebRTC network transport layer ha", "saved_outcome": "refused_model", "outcome": "refused_model", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-A", "q": "In the Dynamic Chunking paper, what validation Bit", "saved_outcome": "refused_model", "outcome": "refused_model", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "What optimizer parameters, warmup step count, drop", "saved_outcome": "answered_partial", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "How does the Mimi neural audio codec convert a 24 ", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "How many total parallel token streams $K$ does Mos", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "In H-Net, how does the routing module compute boun", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "At the XL (1.3B) scale on FineWeb-Edu, after how m", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "How does H-Net make discrete chunking and decompre", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "How does enabling Inner Monologue affect Moshi's s", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 2, "cites": 2}
+{"scenario": "eval-final-B", "q": "Why does H-Net use Mamba-2 layers for its outer en", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-B", "q": "How does Post-Training Quantization (PTQ) from BF1", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "Compare how \"Encoder\" and \"Decoder\" modules are ar", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "How do the three papers address sequence length sc", "saved_outcome": "refused_check", "outcome": "answered", "saved_cites": 0, "cites": 3}
+{"scenario": "eval-final-B", "q": "Compare the tokenization approaches in all three p", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 3, "cites": 3}
+{"scenario": "eval-final-B", "q": "Compare the optimizer choices, learning rate sched", "saved_outcome": "refused_check", "outcome": "refused_check", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "In Moshi's safety evaluation, why does AudioSeal s", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}
+{"scenario": "eval-final-B", "q": "What was the total cloud GPU dollar cost in USD to", "saved_outcome": "refused_model", "outcome": "refused_model", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B", "q": "How does Moshi's WebRTC network transport layer ha", "saved_outcome": "refused_model", "outcome": "refused_model", "saved_cites": 0, "cites": 0}
+{"scenario": "eval-final-B-retry", "q": "Why does the Transformer scale dot-product attenti", "saved_outcome": "answered_partial", "outcome": "answered_partial", "saved_cites": 1, "cites": 1}

@@ -135,6 +135,22 @@ Evidence: least certain assumption candidate: the stand-in's slowdown under load
 section 2). Deliberately not built (log): request coalescing, a model grader (others listed:
 hedged requests, second provider, web UI).
 
+Tanush's own review of the final runs (13 Nov, 10:00 IST), three weaknesses not fixed for
+lack of time and daily tokens (his notes, to compress into his words):
+- The local check refuses too often (refused_check 5 of 18 in A and C, 9 of 18 in B). It
+  withheld correct answers, e.g. Q4 (Moshi K = 17 streams, 160/200 ms latency, Moshi v1
+  §3.4.4) in all three settings. On dense multi-part questions with LaTeX and table numbers,
+  it trips when one sub-part is missing from the fetched pieces or the notation differs from
+  the paper text. This is the cost of "never send an unchecked answer": correct answers
+  withheld rather than wrong ones sent.
+- A partial withhold can drop the citation: when the paragraph carrying the only citation
+  was withheld, the shown paragraph went out with no citation (verified in the grading
+  sheets: A Q6, C Q6, B Q2, outcome answered_partial, citations empty). Q6's crossover
+  figures (H-Net v2 §3.1) were right. This breaks the brief's "every answer must cite" rule:
+  the shown part should carry the citation of the pieces it was checked against.
+- Cross-paper answers are cut off at the 450-token answer budget (A Q11, Q14; C Q13, Q14 end
+  mid-word).
+
 TODO(Tanush): all three parts in your words, including the thing new to you.
 
 ## Your feedback on Vaani
