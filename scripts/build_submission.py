@@ -90,7 +90,7 @@ def main():
     fill_tables.main()
     md = (ROOT / "docs" / "WRITEUP.md").read_text()
     pages = writeup_pdf.render(md, OUT / "WRITEUP.pdf")
-    prose = md[:md.index("## Results tables")]
+    prose = md[:md.index("## Appendix")]
     scratch = OUT / "prose_check.pdf"
     prose_pages = writeup_pdf.render(prose, scratch)
     scratch.unlink()

@@ -15,14 +15,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-CSS = """@page { size: A4; margin: 14mm 15mm; }
-body { font: 10pt/1.32 Georgia, serif; color: #111; }
-h1 { font-size: 15pt; margin: 0 0 4pt; } h2 { font-size: 11.5pt; margin: 9pt 0 2pt; }
-h3 { font-size: 10.5pt; margin: 8pt 0 2pt; } p, ul, blockquote { margin: 0 0 5pt; }
-ul { padding-left: 16pt; } blockquote { border-left: 2pt solid #999; padding-left: 7pt; color: #333; }
-table { border-collapse: collapse; font: 7.4pt/1.25 Helvetica, sans-serif; margin: 3pt 0 7pt; width: 100%; }
-th, td { border: 0.5pt solid #999; padding: 1.5pt 3pt; vertical-align: top; } th { background: #eee; }
-code { font: 8.5pt Menlo, monospace; }"""
+CSS = """@page { size: A4; margin: 14mm 14mm; }
+body { font: 9.5pt/1.22 Georgia, serif; color: #111; }
+h1 { font-size: 13pt; margin: 0 0 3pt; } h2 { font-size: 10.2pt; margin: 6pt 0 1.5pt; }
+h2.appendix { page-break-before: always; }
+h3 { font-size: 9.5pt; margin: 7pt 0 2pt; } p, ul, blockquote { margin: 0 0 4pt; }
+ul { padding-left: 14pt; } blockquote { border-left: 2pt solid #999; padding-left: 6pt; color: #333; font-style: italic; }
+table { border-collapse: collapse; font: 7.2pt/1.22 Helvetica, sans-serif; margin: 2pt 0 6pt; width: 100%; }
+th, td { border: 0.5pt solid #999; padding: 1.3pt 2.5pt; vertical-align: top; } th { background: #eee; }
+code { font: 8.3pt Menlo, monospace; }"""
 
 
 def inline(text):
@@ -48,7 +49,9 @@ def to_html(md):
         elif line.startswith("#"):
             flush()
             level = len(line) - len(line.lstrip("#"))
-            out.append(f"<h{level}>{inline(line[level:].strip())}</h{level}>")
+            title = line[level:].strip()
+            css = ' class="appendix"' if level == 2 and title.startswith("Appendix") else ""
+            out.append(f"<h{level}{css}>{inline(title)}</h{level}>")
         elif line.startswith("|"):
             flush()
             rows = []
@@ -101,7 +104,7 @@ def main():
     md = (ROOT / "docs" / "WRITEUP.md").read_text()
     out = ROOT / "submission"
     out.mkdir(exist_ok=True)
-    prose = md[:md.index("## Results tables")] if "## Results tables" in md else md
+    prose = md[:md.index("## Appendix")] if "## Appendix" in md else md
     print(f"WRITEUP.pdf: {render(md, out / 'WRITEUP.pdf')} pages (with tables)")
     print(f"writing only: {render(prose, out / 'WRITEUP_prose.pdf')} pages (the 2-page limit)")
 
