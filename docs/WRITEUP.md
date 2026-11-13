@@ -29,8 +29,14 @@ retry 429s").
 Evidence:
 - Table 1 (below) from the probe of 10 Nov (`uv run python table1.py`): RPM 30 (429 body),
   TPM 8,000 and RPD 1,000 (headers), no in-flight cap up to 8, recovery 6.2 s after an RPM
-  429 (retry-after 2). Tokens per day: not reached at 182,969 tokens on 12 Nov (docs/QUOTA.md).
-  `[fill: eval-final if a daily 429 arrives]`
+  429 (retry-after 2). Tokens per day 200,000, from the real daily 429 at 03:51:07 UTC on
+  13 Nov (eval-final-B, question 18): "Limit 200000, Used 199263, Requested 3516", retry-after
+  1,201 s. 2,779 tokens over / 1,201 s = ~8,330 tokens an hour = 200,000 / 24 h: the day is a
+  bucket that refills continuously, not a reset at midnight. Groq counted 199,263 in the bucket
+  while our ledger shows 331,195 real tokens since 12 Nov 12:00 UTC (docs/QUOTA.md,
+  data/runs/daily_window_evidence.md).
+- A per-minute 429 our gateway did not prevent: eval-final-B question 1, "Limit 8000, Used
+  4396, Requested 3609" (Groq's prompt count ran above our estimate; 0 tokens spent).
 - Stand-in calibration (data/standin/calibration.md, `uv run python -m relay calibrate`):
   first event p50 502 ms real probe vs 616 ms stand-in at x50; large prompts 906 vs 1,002 ms.
 - Least like the real thing: (a) slowdown under load is ASSUMED (+5% per request above 8 in
@@ -46,11 +52,17 @@ Evidence: Tables 2a, 2b, 3 below. Real: eval-* rows (Groq). Stand-in: all load s
 `[fill from report]` medians and p95/p99 with n.
 
 A number we could not have guessed: candidates (pick one, TODO(Tanush)):
+- the daily limit refills at ~8,330 tokens an hour: Groq counted 199,263 of 200,000 used
+  when our own ledger had sent 331,195 tokens in the same ~16 h;
 - retry budget off vs on under injected slow successes `[fill from Table 2b]`;
 - the slow request in heading 4: 4.1 s lost to a retried attempt that the provider charged.
 
-Answer quality on 18 questions you wrote: Table 3, eval-final. TODO(Tanush): grade
-data/grading/eval-final.csv, then `uv run python -m relay grade data/grading/eval-final.csv`.
+Answer quality on 18 questions you wrote: Table 3 (eval-final-A, -B, -C, 13 Nov, all on Groq).
+Outcomes before grading (traces.jsonl): A 4 answered / 6 in part / 5 withheld by the check /
+3 refused by the model; B 0 / 5 / 9 / 2 plus 2 refused by Groq (TPM 429 on Q1, TPD 429 on
+Q18); C 4 / 6 / 5 / 3. Tokens per answer: A 2,326, B 2,981, C 2,668.
+TODO(Tanush): grade data/grading/eval-final-{A,B,C}.csv, then
+`uv run python -m relay grade data/grading/eval-final-C.csv` (and A, B).
 
 ## 4. Where the time goes
 

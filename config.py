@@ -144,8 +144,9 @@ REASONING_HEADROOM_TOKENS = 150
 REQUEST_TOKEN_CEILING = 6000
 
 # Cost per 1,000 answers (Table 2b) at Groq's published list price, in dollars per million
-# tokens, e.g. {"in": 0.0, "out": 0.0}. None until read from Groq's pricing page (phase 4).
-PRICE_PER_MILLION_TOKENS = None
+# tokens: console.groq.com/docs/model/openai/gpt-oss-20b, read 13 Nov 2026 (input $0.075,
+# output $0.30; cached input $0.037 not used: no prompt caching was relied on).
+PRICE_PER_MILLION_TOKENS = {"in": 0.075, "out": 0.30}
 
 # --- Answer drafting ---
 ANSWER_SYSTEM_PROMPT = (
