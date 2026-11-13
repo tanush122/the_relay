@@ -21,7 +21,7 @@ h1 { font-size: 13pt; margin: 0 0 3pt; } h2 { font-size: 10.2pt; margin: 6pt 0 1
 h2.appendix { page-break-before: always; }
 h3 { font-size: 9.5pt; margin: 7pt 0 2pt; } p, ul, blockquote { margin: 0 0 4pt; }
 ul { padding-left: 14pt; } blockquote { border-left: 2pt solid #999; padding-left: 6pt; color: #333; font-style: italic; }
-table { border-collapse: collapse; font: 7.2pt/1.22 Helvetica, sans-serif; margin: 2pt 0 6pt; width: 100%; }
+table { border-collapse: collapse; font: 6.6pt/1.18 Helvetica, sans-serif; margin: 2pt 0 6pt; width: 100%; }
 th, td { border: 0.5pt solid #999; padding: 1.3pt 2.5pt; vertical-align: top; } th { background: #eee; }
 code { font: 8.3pt Menlo, monospace; }"""
 
