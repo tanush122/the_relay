@@ -76,7 +76,11 @@ def history(key, private):
         parts.append(f"\n## Session {name[:8]} (started {when[:16].replace('T', ' ')} UTC)\n")
         parts.append(export_history.markdown(raw.splitlines()))
     for extra in sorted((ROOT / "docs" / "chat_exports").glob("*.md")):
-        parts.append(f"\n## {extra.stem}\n\n" + clean(extra.read_text(), key, private))
+        text = clean(extra.read_text(), key, private)
+        first = text.splitlines()[0] if text else ""
+        title = first.lstrip("# ").strip() if first.startswith("#") else extra.stem
+        body = text.split("\n", 1)[1] if first.startswith("#") else text
+        parts.append(f"\n## {title}\n\n{body}")
     (OUT / "conversation_history.md").write_text("\n".join(parts))
 
 
