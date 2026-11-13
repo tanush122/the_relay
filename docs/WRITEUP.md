@@ -1,193 +1,107 @@
-# The Relay — write-up
+# The Relay — Tanush
 
-> SKELETON, prepared 13 Nov. Headings are the brief's, in its order. Under each: the evidence we
-> have and where it recomputes from. Every `TODO(Tanush)` is his to write: judgements, the
-> Vaani feedback, and anything that depends on his grades. Numbers marked `[fill from report]`
-> are filled by copying from `uv run python -m relay report` after the final run; never typed.
-> Limit: 2 pages of writing (tables and history are extra).
+> DRAFT 13 Nov. Numbers recompute from data/results.csv, the probe and traces (README.md).
+> **TODO(Tanush)**: only Tanush can write it. *(reword)*: his notes, to put in his words.
 
 ## 1. What I built and why
 
-Evidence:
-- Five steps per question (relay/pipeline.py): understand (normalise), retrieve (local tool
-  call, own timeout and one retry), decide (branch: strong enough evidence → draft; weak →
-  one re-query from the first search's section titles → else refuse with no model call),
-  draft with citations (Groq openai/gpt-oss-20b, streamed), check (each paragraph judged
-  by meaning with a local NLI model plus a number check; unsupported paragraphs withheld,
-  the rest shown as they pass).
-- Gateway (relay/gateway.py): its own refilling budgets for RPM, TPM, RPD, TPD, corrected
-  from response headers; queue with a 15 s give-up deadline; three levels Normal / Lean /
-  Day-gone; exact-match cache of checked answers.
-- Local models only for retrieval, re-ranking and checking; every answer is written by Groq.
-
-Precision over recall, as measured (docs/DECISIONS.md, check threshold 0.4): the meaning check
-keeps 48% of presumed-supported paragraphs of the real replies and lets 4% (1 of 23) of
-swapped-evidence fixtures through. In the final runs it withheld everything in 5 of 18 (A),
-9 of 18 (B) and 5 of 18 (C) replies. It is not a guarantee: in A Q5 it showed a ratio loss that
-is not the paper's Eq. 10 (cited hnet-A-036, judged entailed); Tanush caught it while grading.
-
-TODO(Tanush): the one decision that shaped it most, in your words (candidates from the log:
-"show only checked text, paragraph by paragraph", or "budget tokens in the gateway, not just
-retry 429s").
+Five steps: understand; retrieve (local tool, 1 s timeout, one retry); decide (weak evidence
+→ one re-query → honest refusal, no model call); draft a cited answer with Groq
+openai/gpt-oss-20b, streamed; check each paragraph before showing it (local NLI model
+nli-MiniLM2-L6-H768 plus a number check; unsupported paragraphs are withheld). A gateway keeps
+its own per-minute and per-day budgets, a queue with a 15 s give-up, and three levels: Normal,
+Lean, Day-gone. The check favours precision: at threshold 0.4 it keeps 48% of supported
+paragraphs and passes 4% (1 of 23) of swapped-evidence tests. It is not a guarantee (A Q5,
+last section). **TODO(Tanush):** the one decision that shaped it most.
 
 ## 2. The real service and my stand-in
 
-Evidence:
-- Table 1 (below) from the probe of 10 Nov (`uv run python table1.py`): RPM 30 (429 body),
-  TPM 8,000 and RPD 1,000 (headers), no in-flight cap up to 8, recovery 6.2 s after an RPM
-  429 (retry-after 2). Tokens per day 200,000, from the real daily 429 at 03:51:07 UTC on
-  13 Nov (eval-final-B, question 18): "Limit 200000, Used 199263, Requested 3516", retry-after
-  1,201 s. 2,779 tokens over / 1,201 s = ~8,330 tokens an hour = 200,000 / 24 h: the day is a
-  bucket that refills continuously, not a reset at midnight. Groq counted 199,263 in the bucket
-  while our ledger shows 331,195 real tokens since 12 Nov 12:00 UTC (docs/QUOTA.md,
-  data/runs/daily_window_evidence.md).
-- A per-minute 429 our gateway did not prevent: eval-final-B question 1, "Limit 8000, Used
-  4396, Requested 3609" (Groq's prompt count ran above our estimate; 0 tokens spent).
-- Stand-in calibration (data/standin/calibration.md, `uv run python -m relay calibrate`):
-  first event p50 502 ms real probe vs 616 ms stand-in at x50; large prompts 906 vs 1,002 ms.
-- Least like the real thing: (a) slowdown under load is ASSUMED (+5% per request above 8 in
-  flight; never measured, the probe saw none up to 8); (b) 50x time compression adds ~100 ms
-  at p50; (c) slow successes and failures are INJECTED, rates chosen not measured; (d) the
-  real TPD refill behaviour is not measured.
-
-TODO(Tanush): one sentence on which difference you trust least.
+Probe (99 calls, 10 Nov) and real runs, Table 1: 30 requests/min (429 body), 8,000 tokens/min
+and 1,000 requests/day (headers), no in-flight cap up to 8, recovery 6.2 s after a per-minute
+429. The daily limit was reached for real (13 Nov 03:51 UTC): "Limit 200000, Used 199263,
+Requested 3516", retry-after 1,201 s, so 2,779 tokens refill in 1,201 s, ~8,330 an hour =
+200,000/24 h: the day refills continuously, not at midnight. Once Groq refused a call our
+gateway admitted ("Used 4396, Requested 3609"): its prompt count beat our estimate. The stand-in
+streams, enforces the same limits, fails, stalls and slows under load; first-event times are
+resampled from the probe and the 54 real replies (p50 502 vs 616 ms; ~2,000-token prompts 906
+vs 1,002 ms). Least real: slowdown under load is assumed (+5% per request above 8 in flight),
+failures and slow successes are injected, 50x time compression adds ~100 ms at p50.
 
 ## 3. Results
 
-Evidence: Tables 2a, 2b, 3 below. Real: eval-* rows (Groq). Stand-in: all load scenarios.
-`[fill from report]` medians and p95/p99 with n.
-
-A number we could not have guessed: candidates (pick one, TODO(Tanush)):
-- the daily limit refills at ~8,330 tokens an hour: Groq counted 199,263 of 200,000 used
-  when our own ledger had sent 331,195 tokens in the same ~16 h;
-- retry budget off vs on under injected slow successes `[fill from Table 2b]`;
-- the slow request in heading 4: 4.1 s lost to a retried attempt that the provider charged.
-
-Answer quality on 18 questions you wrote: Table 3 (eval-final-A, -B, -C, 13 Nov, all on Groq).
-Outcomes before grading (traces.jsonl): A 4 answered / 6 in part / 5 withheld by the check /
-3 refused by the model; B 0 / 5 / 9 / 2 plus 2 refused by Groq (TPM 429 on Q1, TPD 429 on
-Q18); C 4 / 6 / 5 / 3. Tokens per answer: A 2,326, B 2,981, C 2,668.
-TODO(Tanush): grade data/grading/eval-final-{A,B,C}.csv, then
-`uv run python -m relay grade data/grading/eval-final-C.csv` (and A, B).
+Real, final system, 18 questions per setting: first text p50 / p95 1,518 / 2,537 ms (A),
+1,635 / 4,515 (B), 2,187 / 4,068 (C); no time-outs. Stand-in, 1,000 requests each: steady
+2,523 / 5,403 / 9,643 ms (p50/p95/p99), 98.1% succeeded; burst 93.7%, 6.3% rate-limited;
+overload (8/min, ~3x what the budget pays for) 54.0% succeeded, 45.0% turned away at once;
+limit halved 86.6%, p99 14,011 ms. Five scenarios ran before MMR retrieval and are labelled
+pre-MMR. Quality (Tanush's grades, Table 3): correct and cited 27.8% (A), 22.2% (B), 38.9% (C);
+wrong 27.8 / 11.1 / 16.7%; wrongly refused 27.8 / 50.0 / 27.8%; all 3 unanswerable questions
+refused in every setting; tokens per answer 2,326 / 3,335 / 2,668. B's Q1 and Q18 were refused
+by Groq (429s) and re-asked once budget allowed. Unguessable number: Groq counted 199,263 daily
+tokens used while we had sent 331,195 in ~16 h.
 
 ## 4. Where the time goes
 
-Evidence (`uv run python -m relay anatomy retry_budget_on`, request 8feeb1e7…, stand-in,
-model time): total 15,195 ms; first thing shown at 15,191 ms ("The papers do not say.").
-Before the first token: waiting 7,810 ms (queue 2 + back-off 456 + queue again 7,352),
-working 3,245 ms (retrieve 919, the answering attempt 2,327), retrying 4,114 ms (attempt 0
-hit the 4 s first-token timeout), handoffs 22 ms. After the first token: 4 ms.
-All of the delay came before the first token. How we know: spans written by the gateway at
-each state change (data/traces/traces.jsonl), recomputed by relay/anatomy.py.
-
-TODO(Tanush): one line on what you would change because of it.
+Request 8feeb1e7 (stand-in, pre-MMR, `relay anatomy`), 15,195 ms in all. Before the first
+token: waiting 7,810 ms (queue, 456 ms back-off, 7,352 ms queued again), working 3,245 ms
+(retrieval 919, answering attempt 2,327), retrying 4,114 ms (first attempt hit the 4 s
+first-token timeout). After it: 4 ms. Known from the spans the gateway writes at every state
+change (traces.jsonl).
 
 ## 5. When a limit is hit
 
-Evidence: gateway levels (relay/gateway.py). Per-minute: requests queue for the refill up to
-the 15 s deadline; below LEAN_BELOW_ANSWERS affordable answers, Lean (2 pieces, 120-token
-answer, no re-query); a request whose first token is predicted to miss the 15 s give-up
-is refused on arrival with a retry time ("[busy: please ask again in about 15 s]"), and
-one whose deadline passes while queued is dropped; neither spends tokens. Per-day: Day-gone, retrieved passages quoted with no generated
-answer (see heading 7). Scenario numbers: overload, overload_small_first, limit_halved,
-day_exhausted rows of Table 2b.
-
-TODO(Tanush): who is delayed, dropped, weakened, and why, in your words.
+Per minute: wait in the queue for refill; if the first token cannot come before the 15 s
+give-up, refuse at once with a retry time, spending nothing; with under 1.5 answers affordable,
+answer Lean (2 pieces, 120 tokens). Per day: Day-gone, no model call. Overload: 45.0% refused
+on arrival, 1.0% gave up queued. **TODO(Tanush):** who is delayed, dropped, weakened, and why.
 
 ## Retrieval: quality versus cost
 
-Evidence: Table 3 (A small fixed, B large fixed, C section-aware + re-rank + MMR).
-Earlier runs eval-A/B/C/C2 stay in results.csv as the history. Offline key-figure coverage
-with MMR: A 204, B 218, C 217 of 291 (docs/DECISIONS.md).
-Near the limit: Lean level, 2 pieces and a 120-token answer.
-
-Tanush's grades (his message, 13 Nov 10:03 IST; Table 3 recomputes them only once they are in
-the grading sheets): C 38.9% correct and cited, 16.7% wrong; A 27.8% correct and cited, 27.8%
-wrong; B 16.7% correct and cited, 50.0% wrongly refused. Unanswerable Q16-Q18 (GPU cost,
-WebRTC packet loss, 3-stage 7B H-Net): A and C refused 3 of 3 without guessing; B refused
-2 of 3 and Q18 was refused by Groq's daily limit (re-asked in eval-final-B-retry).
-TODO(Tanush, reword): choose C and say why; say what B's large fixed pieces did to refusals.
+A: fixed 180-token pieces, 8 fetched. B: fixed 600, 4 fetched. C: section-aware up to 600, 4 of
+20 after re-rank, diverse (MMR). C is best (38.9% correct and cited) at mid cost; B costs most
+and refuses most. Near the limit, Lean fetches 2. **TODO(Tanush, reword):** why C.
 
 ## How this library will mislead a naive retriever
 
-Evidence: docs/TRAPS.md, three traps with real failing examples on setting A: (1) the same
-words name different things in different papers; (2) table rows cut away from their headers;
-(3) baselines and related work that look like answers.
-
-A real failure from the final runs (B, Q13, request 66b7af19): "Compare the tokenization
-approaches in all three papers..." retrieved 4 pieces, all from H-Net (hnet-B-001, -039,
--034, -038): one paper's dense tokenization discussion crowds out the other two.
-
-TODO(Tanush): compress to three lines with one example question each.
+(1) Same words, different things: "encoder and decoder layers" pulls Attention's N = 6 next to
+H-Net's ablations. (2) Table rows cut from their headers. (3) Baselines and related work that
+look like answers. Final-run case: B Q13 "compare tokenization in all three papers" retrieved 4
+pieces, all H-Net (docs/TRAPS.md).
 
 ## 6. Retries
 
-Evidence: policy in config.py: at most 2 retries, back-off 0.5 s base, retry budget 10% of
-the last 100 model calls, never retry past the person's deadline. Worse case: the
-retry_budget_on / retry_budget_off pair `[fill from Table 2b: succeeded %, timed out %,
-retries per request, tokens per answer]`.
-
-TODO(Tanush): the one case where retrying made it worse, in your words.
+At most 2, 0.5 s base back-off, budget 10% of the last 100 calls, never past the person's
+deadline. With 30% slow successes injected, budget on vs off: 75.5 vs 74.9% succeeded, 0.05 vs
+0.03 retries per request (pre-MMR): the deadline rule already blocks most retries. Worse case:
+heading 4's retry cost 4.1 s, a second queue, a charged prompt, and the person got "The papers
+do not say" at 15.2 s, past the give-up.
 
 ## 7. What the person sees
 
-The real Day-gone reply (day_exhausted scenario, traces.jsonl), first lines verbatim:
-
 > Generated answers are paused: today's model budget is used up. They return in about 7
-> minutes. Here are the most relevant passages from the papers, quoted as they are, without
-> a generated answer:
->
-> [H-Net v2, §3.3 Ablation Studies] …
+> minutes. Here are the most relevant passages from the papers, quoted as they are, without a
+> generated answer: [H-Net v2, §3.3 Ablation Studies] …
 
-90 of 300 day_exhausted requests got this reply; 111 waited past the deadline in the queue;
-15 were refused as busy.
-
-TODO(Tanush): one line on why passages and not a weaker answer.
+(real text, day_exhausted run; 90 of 300 got it). **TODO(Tanush):** why passages.
 
 ## 8. What I'm unsure about, what I left out, what I learned
 
-Evidence: least certain assumption candidate: the stand-in's slowdown under load (ASSUMED,
-section 2). Deliberately not built (log): request coalescing, a model grader (others listed:
-hedged requests, second provider, web UI).
-
-Tanush's own review of the final runs (13 Nov, 10:00 IST), three weaknesses not fixed for
-lack of time and daily tokens (his notes, to compress into his words):
-- The local check refuses too often (refused_check 5 of 18 in A and C, 9 of 18 in B). It
-  withheld correct answers, e.g. Q4 (Moshi K = 17 streams, 160/200 ms latency, Moshi v1
-  §3.4.4) in all three settings. On dense multi-part questions with LaTeX and table numbers,
-  it trips when one sub-part is missing from the fetched pieces or the notation differs from
-  the paper text. This is the cost of "never send an unchecked answer": correct answers
-  withheld rather than wrong ones sent.
-- A partial withhold can drop the citation: when the paragraph carrying the only citation
-  was withheld, the shown paragraph went out with no citation (verified in the grading
-  sheets: A Q6, C Q6, B Q2, outcome answered_partial, citations empty). Q6's crossover
-  figures (H-Net v2 §3.1) were right. This breaks the brief's "every answer must cite" rule:
-  the shown part should carry the citation of the pieces it was checked against.
-- Cross-paper answers are cut off at the 450-token answer budget (A Q11, Q14; C Q13, Q14 end
-  mid-word).
-
-TODO(Tanush): all three parts in your words, including the thing new to you.
+Least certain: the stand-in's slowdown under load; if real slowdown starts earlier, burst and
+overload tails are optimistic. Not built: request coalescing, a model grader. Unfixed
+*(reword)*: the check withholds correct dense answers (Q4, Moshi K = 17, in all settings); a
+paragraph checked against a later citation was shown without it (A Q6, C Q6, B Q2; offline fix
+ready, not applied, data/runs/citation_fix); cross-paper answers cut at 450 tokens.
+**TODO(Tanush):** one thing new to you.
 
 ## Your feedback on Vaani
 
-TODO(Tanush): entirely yours (visit https://www.vaani.dev/): what stood out, what confused
-you, one thing you would change.
+**TODO(Tanush).**
 
 ## How I worked with the assistant
 
-Evidence: conversation history exported by `uv run python scripts/export_history.py`
-(export/conversation/, raw JSONL plus readable Markdown, keys redacted and re-scanned).
-Decision log with your calls in your words: docs/DECISIONS.md.
-
-Something the system got wrong that Tanush caught (grading, 13 Nov): A Q5 (request
-eb1e64e8…) cited hnet-A-036, which holds the outer loss L = L_AR + alpha * sum L_ratio^s with
-alpha = 0.03 but not Eq. 10, and showed a made-up squared-error ratio loss instead of the
-paper's load-balancing form (N/(N-1)) ((N-1) F G + (1-F)(1-G)) (H-Net v2 §2.2.3). The check
-judged it entailed and showed it. TODO(Tanush): decide whether this is your "it got wrong"
-example (the brief asks about the coding assistant) or a heading 8 limitation.
-
-TODO(Tanush): three prompts that mattered most and why; one thing it got wrong that you
-caught and how; one decision where you overruled it; what is distinctly yours.
+History: conversation_history/; my calls: docs/DECISIONS.md. Caught in grading: A Q5 cited
+hnet-A-036 but gave a squared-error ratio loss, not the paper's Eq. 10, and the check passed
+it. **TODO(Tanush):** three prompts, one thing it got wrong, one overrule, what is yours.
 
 ## Results tables
 
@@ -209,55 +123,45 @@ Generated by `uv run python scripts/fill_tables.py` from data/results.csv (8430 
 
 | Scenario | Real or stand-in | Requests sent | Duration (s) | Offered rate (per min) | First token p50 / p95 / p99 (ms) | Total time p50 / p95 / p99 (ms) |
 | --- | --- | --- | --- | --- | --- | --- |
-| eval-C | real | 18 | 443.8 | 2.4 | 1613 / 2602 / 2602 (n=18) | 1613 / 2602 / 2602 (n=18) |
-| eval-A | real | 18 | 301.3 | 3.6 | 1347 / 3764 / 3764 (n=18) | 1347 / 3764 / 3764 (n=18) |
-| eval-B | real | 18 | 419.2 | 2.6 | 1855 / 3804 / 3804 (n=18) | 1855 / 3804 / 3804 (n=18) |
-| eval-C2 | real | 18 | 314.3 | 3.4 | 1711 / 3282 / 3282 (n=18) | 1711 / 3282 / 3282 (n=18) |
-| overload | stand-in | 1000 | 7373.1 | 8.1 | 6722 / 13340 / 14917 (n=540) | 2032 / 12852 / 15075 (n=1000) |
-| retry_budget_on | stand-in | 1000 | 19660.1 | 3.1 | 3299 / 11970 / 14794 (n=755) | 3345 / 12736 / 15142 (n=1000) |
-| retry_budget_off | stand-in | 1000 | 19659.9 | 3.1 | 3160 / 11920 / 14868 (n=749) | 3208 / 12874 / 15142 (n=1000) |
-| overload_small_first | stand-in | 1000 | 7373.2 | 8.1 | 6114 / 13787 / 15365 (n=542) | 1911 / 13171 / 15229 (n=1000) |
-| day_exhausted | stand-in | 300 | 9231.4 | 2.0 | 2529 / 5121 / 14190 (n=84) | 2685 / 14242 / 14286 (n=300) |
-| eval-final-interrupted | real | 2 | 4.3 | 37.7 | 1003 / 1984 / 1984 (n=2) | 1138 / 2918 / 2918 (n=2) |
-| eval-final-C | real | 18 | 350.0 | 3.1 | 2187 / 4068 / 4068 (n=18) | 2260 / 4069 / 4069 (n=18) |
 | eval-final-A | real | 18 | 280.2 | 3.9 | 1518 / 2537 / 2537 (n=18) | 1518 / 2537 / 2537 (n=18) |
 | eval-final-B | real | 18 | 487.8 | 2.2 | 1635 / 4515 / 4515 (n=16) | 1878 / 4515 / 4515 (n=18) |
-| burst | stand-in | 1000 | 36462.2 | 1.6 | 2598 / 4830 / 8197 (n=937) | 2599 / 4786 / 8052 (n=1000) |
-| limit_halved | stand-in | 1000 | 29487.9 | 2.0 | 2661 / 9075 / 14011 (n=867) | 2761 / 11511 / 14225 (n=1000) |
 | eval-final-B-retry | real | 2 | 1442.1 | 0.1 | 1245 / 2601 / 2601 (n=2) | 1245 / 3352 / 3352 (n=2) |
+| eval-final-C | real | 18 | 350.0 | 3.1 | 2187 / 4068 / 4068 (n=18) | 2260 / 4069 / 4069 (n=18) |
 | steady | stand-in | 1000 | 29487.9 | 2.0 | 2523 / 5403 / 9643 (n=981) | 2597 / 5411 / 9665 (n=1000) |
+| burst | stand-in | 1000 | 36462.2 | 1.6 | 2598 / 4830 / 8197 (n=937) | 2599 / 4786 / 8052 (n=1000) |
 | burst_cached | stand-in | 1000 | 36460.1 | 1.6 | 1956 / 4356 / 6841 (n=960) | 1916 / 4484 / 6777 (n=1000) |
+| overload (pre-MMR) | stand-in | 1000 | 7373.1 | 8.1 | 6722 / 13340 / 14917 (n=540) | 2032 / 12852 / 15075 (n=1000) |
+| overload_small_first (pre-MMR) | stand-in | 1000 | 7373.2 | 8.1 | 6114 / 13787 / 15365 (n=542) | 1911 / 13171 / 15229 (n=1000) |
+| retry_budget_on (pre-MMR) | stand-in | 1000 | 19660.1 | 3.1 | 3299 / 11970 / 14794 (n=755) | 3345 / 12736 / 15142 (n=1000) |
+| retry_budget_off (pre-MMR) | stand-in | 1000 | 19659.9 | 3.1 | 3160 / 11920 / 14868 (n=749) | 3208 / 12874 / 15142 (n=1000) |
+| limit_halved | stand-in | 1000 | 29487.9 | 2.0 | 2661 / 9075 / 14011 (n=867) | 2761 / 11511 / 14225 (n=1000) |
+| day_exhausted (pre-MMR) | stand-in | 300 | 9231.4 | 2.0 | 2529 / 5121 / 14190 (n=84) | 2685 / 14242 / 14286 (n=300) |
 
 ### Table 2b: Outcomes
 
 | Scenario | Succeeded % | Rate-limited % | Timed out or given up % | Retries per request | Peak queue length | Tokens per answer | Cost per 1,000 answers |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| eval-C | 100.0 | 0.0 | 0.0 | 0.00 | 2 | 2427 | $0.23 |
-| eval-A | 100.0 | 0.0 | 0.0 | 0.00 | 2 | 2079 | $0.20 |
-| eval-B | 100.0 | 0.0 | 0.0 | 0.00 | 2 | 3114 | $0.29 |
-| eval-C2 | 100.0 | 0.0 | 0.0 | 0.00 | 1 | 2545 | $0.26 |
-| overload | 54.0 | 45.0 | 1.0 | 0.00 | 3 | 871 | $0.09 |
-| retry_budget_on | 75.5 | 22.3 | 2.2 | 0.05 | 3 | 1541 | $0.15 |
-| retry_budget_off | 74.9 | 23.5 | 1.6 | 0.03 | 3 | 1516 | $0.15 |
-| overload_small_first | 54.2 | 45.2 | 0.6 | 0.00 | 3 | 881 | $0.09 |
-| day_exhausted | 28.0 | 35.0 | 37.0 | 0.00 | 3 | 658 | $0.06 |
-| eval-final-interrupted | 100.0 | 0.0 | 0.0 | 0.00 | 1 | 2344 | $0.25 |
-| eval-final-C | 100.0 | 0.0 | 0.0 | 0.00 | 1 | 2668 | $0.28 |
 | eval-final-A | 100.0 | 0.0 | 0.0 | 0.00 | 1 | 2326 | $0.26 |
 | eval-final-B | 88.9 | 11.1 | 0.0 | 0.00 | 1 | 2981 | $0.31 |
-| burst | 93.7 | 6.3 | 0.0 | 0.00 | 4 | 2216 | $0.23 |
-| limit_halved | 86.6 | 11.8 | 1.6 | 0.04 | 3 | 1877 | $0.19 |
 | eval-final-B-retry | 100.0 | 0.0 | 0.0 | 0.00 | 1 | 3190 | $0.29 |
+| eval-final-C | 100.0 | 0.0 | 0.0 | 0.00 | 1 | 2668 | $0.28 |
 | steady | 98.1 | 1.9 | 0.0 | 0.00 | 3 | 2243 | $0.23 |
+| burst | 93.7 | 6.3 | 0.0 | 0.00 | 4 | 2216 | $0.23 |
 | burst_cached | 96.0 | 3.9 | 0.1 | 0.00 | 4 | 1388 | $0.13 |
+| overload (pre-MMR) | 54.0 | 45.0 | 1.0 | 0.00 | 3 | 871 | $0.09 |
+| overload_small_first (pre-MMR) | 54.2 | 45.2 | 0.6 | 0.00 | 3 | 881 | $0.09 |
+| retry_budget_on (pre-MMR) | 75.5 | 22.3 | 2.2 | 0.05 | 3 | 1541 | $0.15 |
+| retry_budget_off (pre-MMR) | 74.9 | 23.5 | 1.6 | 0.03 | 3 | 1516 | $0.15 |
+| limit_halved | 86.6 | 11.8 | 1.6 | 0.04 | 3 | 1877 | $0.19 |
+| day_exhausted (pre-MMR) | 28.0 | 35.0 | 37.0 | 0.00 | 3 | 658 | $0.06 |
 
 ### Table 3: Retrieval settings
 
 | Setting (piece size, pieces fetched, re-rank yes or no) | Questions asked | Correct and cited % | Wrong % | Correctly refused % | Tokens per answer | First token p50 / p95 (ms) | Total time p50 / p95 (ms) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A (fixed 180 tokens, 8 pieces, re-rank no) | 18 (graded 0 of 18) | not measured | not measured | not measured | 2326 | 1518 / 2537 (n=18) | 1518 / 2537 (n=18) |
-| B (fixed 600 tokens, 4 pieces, re-rank no) | 18 (graded 0 of 18) | not measured | not measured | not measured | 3335 | 1635 / 4515 (n=18) | 1887 / 4515 (n=18) |
-| C (section-aware, up to 600 tokens, 4 of 20 pieces, re-rank yes) | 18 (graded 0 of 18) | not measured | not measured | not measured | 2668 | 2187 / 4068 (n=18) | 2260 / 4069 (n=18) |
+| A (fixed 180 tokens, 8 pieces, re-rank no) | 18 | 27.8 | 27.8 | 16.7 | 2326 | 1518 / 2537 (n=18) | 1518 / 2537 (n=18) |
+| B (fixed 600 tokens, 4 pieces, re-rank no) | 18 | 22.2 | 11.1 | 16.7 | 3335 | 1635 / 4515 (n=18) | 1887 / 4515 (n=18) |
+| C (section-aware, up to 600 tokens, 4 of 20 pieces, re-rank yes) | 18 | 38.9 | 16.7 | 16.7 | 2668 | 2187 / 4068 (n=18) | 2260 / 4069 (n=18) |
 
 ### Side table: earlier evaluation runs (not the final system)
 

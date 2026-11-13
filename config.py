@@ -282,6 +282,15 @@ TABLE3_RUNS = ("eval-final-A", "eval-final-B", "eval-final-C")
 # In Table 3 a run's rate_limited rows are replaced by its retry run's rows; both stay in
 # results.csv. So B = eval-final-B rows that were not rate-limited + eval-final-B-retry rows.
 TABLE3_RETRIES = {"eval-final-B-retry": "eval-final-B"}
+# Tables 2a/2b: the final real runs, then the stand-in load scenarios, in this order. Earlier
+# real evaluation runs stay in results.csv and in the side table of the report.
+TABLE2_SCENARIOS = ("eval-final-A", "eval-final-B", "eval-final-B-retry", "eval-final-C",
+                    "steady", "burst", "burst_cached", "overload", "overload_small_first",
+                    "retry_budget_on", "retry_budget_off", "limit_halved", "day_exhausted")
+# Stand-in runs made on 12 Nov before diversity-aware retrieval (MMR) was switched on; the
+# re-runs on the final system were stopped on Tanush's word (13 Nov), so they are labelled.
+PRE_MMR_SCENARIOS = ("overload", "overload_small_first", "retry_budget_on", "retry_budget_off",
+                     "day_exhausted")
 
 # --- Load runs (relay/loadgen.py) against the stand-in ---
 # Arrivals are a STATED process, not a replayed public trace (no trace's licence could be

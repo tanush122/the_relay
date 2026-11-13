@@ -66,9 +66,16 @@ def table(header, lines):
     return "\n".join(out + ["| " + " | ".join(str(c) for c in line) + " |" for line in lines])
 
 
+def table2_groups(rows):
+    """The scenarios of Tables 2a/2b in config order, pre-MMR stand-in runs labelled."""
+    found = groups(rows, "scenario")
+    return [(name + (" (pre-MMR)" if name in config.PRE_MMR_SCENARIOS else ""), found[name])
+            for name in config.TABLE2_SCENARIOS if name in found]
+
+
 def table_2a(rows):
     lines = []
-    for name, rs in groups(rows, "scenario").items():
+    for name, rs in table2_groups(rows):
         starts = arrivals(rs)
         ends = [s + timedelta(milliseconds=float(r["total_ms"])) for s, r in zip(starts, rs)]
         span_min = (max(starts) - min(starts)).total_seconds() / 60
@@ -88,7 +95,7 @@ def tokens_per_answer(rs):
 
 def table_2b(rows):
     lines = []
-    for name, rs in groups(rows, "scenario").items():
+    for name, rs in table2_groups(rows):
         count = {s: sum(r["status"] == s for r in rs) for s in results.STATUSES}
         lines.append([name, pct(count["ok"], len(rs)), pct(count["rate_limited"], len(rs)),
                       pct(count["timeout"], len(rs)),
