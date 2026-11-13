@@ -25,6 +25,22 @@ uv run python probe.py --dry-run                    # the lean probe: every requ
 uv run python table1.py                             # Table 1 draft from the newest probe run
 ```
 
+## Recompute every table and figure (no Groq tokens)
+
+```sh
+uv run python table1.py                                  # Table 1: limits, from the probe files in data/probe/
+uv run python -m relay report                            # Tables 1, 2a, 2b and 3, from data/results.csv
+uv run python -m relay calibrate                         # stand-in vs real latency (heading 2)
+uv run python -m relay anatomy retry_budget_on           # heading 4: one slow request split into waiting / working / retrying
+uv run python -m relay load <scenario>                   # re-run one load scenario on the stand-in (appends rows)
+uv run python scripts/export_history.py                  # conversation history into export/conversation/, keys redacted
+```
+
+Load scenarios (config.SCENARIOS, all on the stand-in): steady, burst, burst_cached, overload,
+overload_small_first, retry_budget_on, retry_budget_off, limit_halved, day_exhausted.
+Table 3 reads only the final evaluation runs (config.TABLE3_RUNS: eval-final-A, -B, -C); the
+earlier eval-A/B/C/C2 rows stay in results.csv as the record of how the system got there.
+
 ## The questions file (Tanush writes it)
 
 `data/questions.csv` has three columns: `question`, `expected`, `type`. Write the expected answer in your own words, or `not in papers` for a question the papers do not answer. `type` is one of `prose`, `table`, `cross-paper`, `unanswerable`. Two format examples (made up to show the format, NOT evaluation questions; do not copy them into the file):

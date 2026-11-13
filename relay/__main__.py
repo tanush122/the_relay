@@ -5,6 +5,7 @@
   grade SHEET      copy hand grades from a grading sheet into results.csv
   report           Tables 1, 2a, 2b and 3 from the probe files and results.csv
   load SCENARIO    one load scenario against the stand-in (no Groq), rows into results.csv
+  anatomy [SCEN]   one slow request split into waiting / working / retrying
   calibrate        the stand-in's latency next to the real probe's, side by side
   validate         check results.csv against the brief's columns and the empty-field rule
 
@@ -21,7 +22,7 @@ from pathlib import Path
 import config
 import table1
 from library import parse, search
-from relay import evaluate, llm, loadgen, pipeline, report, results, standin
+from relay import anatomy, evaluate, llm, loadgen, pipeline, report, results, standin
 
 
 def spend_gate(args, estimate):
@@ -87,7 +88,8 @@ def run_eval(args):
     if args.dry_run:
         return
     api_key = spend_gate(args, total)
-    asyncio.run(evaluate.run(questions, index, api_key, args.max_tokens_total))
+    asyncio.run(evaluate.run(questions, index, api_key, args.max_tokens_total,
+                               scenario=args.scenario))
 
 
 def calibrate():
@@ -133,6 +135,7 @@ def main(argv=None):
             p.add_argument("question")
         else:
             p.add_argument("--questions", default=str(config.QUESTIONS_PATH))
+            p.add_argument("--scenario", help="results.csv scenario name (default eval-SETTING)")
         p.add_argument("--setting", default=config.RETRIEVAL_SETTING, choices=sorted(config.SETTINGS))
         p.add_argument("--dry-run", action="store_true", help="retrieve and estimate; no request")
         p.add_argument("--confirm", action="store_true", help="allow real model calls")
@@ -145,6 +148,9 @@ def main(argv=None):
     load.add_argument("--requests", type=int, help="fewer requests for a short check")
     load.add_argument("--results", help="write rows here instead of data/results.csv")
     sub.add_parser("calibrate")
+    anat = sub.add_parser("anatomy")
+    anat.add_argument("scenario", nargs="?", default="retry_budget_on")
+    anat.add_argument("--request", help="a request_id instead of the slowest answered one")
     args = ap.parse_args(argv)
 
     if args.command == "ask":
@@ -165,6 +171,8 @@ def main(argv=None):
         report.print_report(path)
     elif args.command == "calibrate":
         calibrate()
+    elif args.command == "anatomy":
+        anatomy.print_anatomy(args.scenario, args.request)
     elif args.command == "validate":
         sys.exit(0 if results.validate_and_print() else 1)
 

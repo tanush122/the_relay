@@ -120,7 +120,7 @@ def table_3(rows):
     lines = []
     # Only the final system's runs (Tanush, 12 Nov: grade the latest system); earlier
     # evaluation rows stay in results.csv as the record of how it got there.
-    evaluated = [r for r in rows if r["scenario"].startswith(config.TABLE3_PREFIX)]
+    evaluated = [r for r in rows if r["scenario"] in config.TABLE3_RUNS]
     for name, rs in sorted(groups(evaluated, "retrieval_setting").items()):
         graded = [r for r in rs if r["answer_grade"]]
         grade = {g: sum(r["answer_grade"] == g for r in graded) for g in results.GRADES}

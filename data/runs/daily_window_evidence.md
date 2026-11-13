@@ -1,0 +1,22 @@
+# Daily window: what the headers and the console say (13 Nov, 08:42 IST)
+
+From data/traces/traces.jsonl, every real Groq response of 12 Nov (eval-*, ask): 74 responses
+carry rate-limit headers, the first at 12:00:22 UTC, the last at 13:52:39 UTC.
+
+| Response (UTC, 12 Nov) | Run | remaining-requests / limit | reset-requests | remaining-tokens / limit (per minute) | reset-tokens |
+| --- | --- | --- | --- | --- | --- |
+| 13:03:54 | eval-C2 (last of that run) | 956 / 1000 | 1h3m21.6s | 1556 / 8000 | 48.33s |
+| 13:52:36 | eval-final-interrupted | 988 / 1000 | 17m16.8s | 5547 / 8000 | 18.397s |
+| 13:52:39 | eval-final-interrupted (last real call) | 987 / 1000 | 18m43.2s | 3778 / 8000 | 31.665s |
+
+- Requests per day refill continuously, not at a fixed time: 956 remaining at 13:03 rose to
+  988 by 13:52 with only 1 call in between (32 refilled in 49 min, about one per 86 s =
+  1000 / 24 h), and reset-requests counts down the time to a full bucket.
+- Groq's console (Tanush, 13 Nov 03:12 UTC = 08:42 IST) still showed 74 API calls: exactly
+  the 74 real responses above, made since 12:00 UTC on 12 Nov. The console's count is a
+  rolling 24 h window, not a calendar day.
+- Tokens per day is not in any header. Real tokens on 12 Nov: 182,969 (docs/QUOTA.md) plus
+  4,687 in the 2 interrupted rows = 187,656, with no 429. If the documented 200,000 a day is
+  the same rolling 24 h window, about 12,000 tokens are free before ~17:30 IST today.
+  This is an inference, not a measurement: Table 1's tokens-per-day row stays at
+  "not measured (no 429 at 187,656 tokens in about 2 h)".
